@@ -119,7 +119,7 @@ dt = symbols('dt')
 
 
 
-omega, k, g, U, H, u_0, h_0, Fr = symbols('omega k g U H u_0 h_0 Fr', real = True)
+omega, k, g, U, H, u_0, h_0, Fr, c = symbols('omega k g U H u_0 h_0 Fr c', real = True)
 x = symbols('x', real = True)
 t = symbols('t', real = True)
 
@@ -134,7 +134,7 @@ exact_exp = exact_exp.tolist()
 
 operators = [A_h, A_u, F, G] #array of operators - this defines the general order in which they will be treated
 #op_repl = {A_u: k*U, A_h: k*U, F: k*H, G:k*g} #dimensional
-op_repl = {A_u: 1j*k, A_h: 1j*k, F: 1j*k, G:1j*k/(Fr**2)}
+op_repl = {A_u: 1j*k*c*Fr, A_h: 1j*k*c*Fr, F: 1j*k*c, G:1j*k*c}
 
 def rearrange_operator(operators_list):
     """
