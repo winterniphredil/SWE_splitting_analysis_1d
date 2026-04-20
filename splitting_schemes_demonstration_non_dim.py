@@ -58,11 +58,11 @@ def exact_update_no_exp(u_0, h_0, k, Fr, c, n, dt):
     """
     #exact_op = np.matrix([[-c*Fr,-c],[-c,-c*Fr]])
     #exact_exp = expm(1j * exact_op*n*dt) @ (np.matrix([u_0,h_0]).T * np.exp(1j * k*x))
-    k_eff = np.sin(k*dx)/dx
-    omega_plus_eff = c*(Fr+1) * k_eff
-    omega_minus_eff = c*(Fr-1) * k_eff
-    exact_exp_plus = ( cos(1.*k*x) + omega_plus_eff * sin(1.*k*x) * n * dt - 1/2 * (omega_plus_eff)**2 * cos(1.*k*x) * n**2 * dt**2 - 1/6 * (omega_plus_eff)**3 * sin(1.*k*x) * n**3 * dt**3 )
-    exact_exp_minus = ( cos(1.*k*x) + omega_minus_eff * sin(1.*k*x) * n * dt - 1/2 * (omega_minus_eff)**2 * cos(1.*k*x) * n**2 * dt**2 - 1/6 * (omega_minus_eff)**3 * sin(1.*k*x) * n**3 * dt**3 )
+    k_num = np.sin(k*dx)/dx
+    omega_plus_num = c*(Fr+1) * k_num
+    omega_minus_num = c*(Fr-1) * k_num
+    exact_exp_plus = ( cos(1.*k*x) + omega_plus_num * sin(1.*k*x) * n * dt - 1/2 * (omega_plus_num)**2 * cos(1.*k*x) * n**2 * dt**2 - 1/6 * (omega_plus_num)**3 * sin(1.*k*x) * n**3 * dt**3 )
+    exact_exp_minus = ( cos(1.*k*x) + omega_minus_num * sin(1.*k*x) * n * dt - 1/2 * (omega_minus_num)**2 * cos(1.*k*x) * n**2 * dt**2 - 1/6 * (omega_minus_num)**3 * sin(1.*k*x) * n**3 * dt**3 )
     #return u_0 * np.cos(omega_plus) - h_0 * Fr * np.sin(omega_minus) , h_0 * np.cos(omega_plus) - u_0 * Fr * np.sin(omega_minus) 
     #return u_0 * np.cos(omega_plus) , h_0 * np.cos(omega_plus)
     return exact_exp_plus*u_0, exact_exp_plus*h_0
