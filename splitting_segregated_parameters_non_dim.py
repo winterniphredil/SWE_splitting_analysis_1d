@@ -114,7 +114,7 @@ def simplify_commutators_for_3(expr):
             changed = True
     return expr
 
-A_h, A_u, F, G = symbols('A_h A_u F G', commutative = False)
+A_h, A_u, F, G = symbols('A_h A_u F G')
 dt = symbols('dt', real = True)
 
 
@@ -178,10 +178,14 @@ def calc_splitting_error(operator_sequence, step_ops, step_count, order, n, I):
             step_ops[i] = rearrange_operator(current_ops)
     x_vec = [step_ops[step_count-1], step_ops[step_count-2]]
     #for i in [0,1]:print(series(smp.expand(exact_exp[i],dt), dt, 1j*k*x, n=3)) 
-    diff = [smp.series(x_vec[i],dt,0,4).removeO() - exact_exp[i] for i in [0,1]]
+    diff = [smp.series(x_vec[i],dt,0,6).removeO() - exact_exp[i] for i in [0,1]]
     #diff = [exact_exp[i][0] for i in [0,1]]
+    diff_raw = smp.collect(smp.expand(diff[1]),dt).coeff(dt,2)
+    print("Raw O(dt**2) h coeff:")
+    for term in diff_raw.as_ordered_terms():print(term)
     diff = [smp.collect(smp.expand(diff_i), dt).coeff(dt, order) for diff_i in diff] # only keep dt**2 term
-    diff = [diff_i.subs(op_repl) for diff_i in diff]
+    diff = [smp.expand(diff_i.subs(op_repl)) for diff_i in diff]
+    diff = [smp.simplify(diff_i) for diff_i in diff]
     term_coeffs = [collect_terms(diff_i) for diff_i in diff]
     result = ""
     term_indicator = ["u","h"]
@@ -212,7 +216,7 @@ for order_to_run in range(4):
         #]
         operator_sequence_1_1 = [lambda: [(u_0*E**(1j*k*x),0)], lambda: [(h_0*E**(1j*k*x),0)], lambda: [(u_0*E**(1j*k*x),0)]]
         for i in range(no_steps): step_ops[i] = operator_sequence_1_1[i]()[0][0]
-
+        step_ops[2]=step_ops[0]
 
         for i in range(0,I):
             operator_sequence_1_1.append(lambda i=i: [(step_ops[0],0),(-1/2*dt*A_u*(step_ops[0]+step_ops[(i+1)*no_steps-1]),0),(-1/2*dt*G*step_ops[1],0)])
@@ -235,9 +239,11 @@ for order_to_run in range(4):
         #]
         operator_sequence_1_2 = [lambda: [(u_0*E**(1j*k*x),0)], lambda: [(u_0*E**(1j*k*x),0)], lambda: [(h_0*E**(1j*k*x),0)], lambda: [(u_0*E**(1j*k*x),0)]]
         for i in range(no_steps): step_ops[i] = operator_sequence_1_2[i]()[0][0]
+        step_ops[1]=step_ops[0]
+        step_ops[3]=step_ops[0]
 
         for i in range(0,I):
-            operator_sequence_1_2.append(lambda i=i: [(step_ops[0],0),(-dt*A_u*step_ops[0],1/2),(-1/2*dt*G*step_ops[2],0),(-1/2*dt*G*step_ops[(i+1)*no_steps-2],0)])
+            operator_sequence_1_2.append(lambda i=i: [(step_ops[0],0),(-1/2*dt*A_u*step_ops[0],0),(-1/2*dt*A_u,1),(-1/2*dt*G*step_ops[2],0),(-1/2*dt*G*step_ops[(i+1)*no_steps-2],0)])
             operator_sequence_1_2.append(lambda i=i: [(step_ops[0],0),(-1/2*dt*A_u*step_ops[0],0),(-1/2*dt*A_u*step_ops[(i+1)*no_steps],0),(-1/2*dt*G*step_ops[2],0)])
             operator_sequence_1_2.append(lambda i=i: [(step_ops[2],0),(-1/2*dt*A_h*step_ops[2],0),(-1/2*dt*A_h,1),(-1/2*dt*F*step_ops[0],0),(-1/2*dt*F*step_ops[(i+1)*no_steps+1],0),(1/4*dt*dt*F*G,1)])
             operator_sequence_1_2.append(lambda i=i: [(step_ops[(i+1)*no_steps+1],0),(-1/2*dt*G*step_ops[(i+1)*no_steps+2],0)])
@@ -257,6 +263,7 @@ for order_to_run in range(4):
         #]
         operator_sequence_1_3_impl = [lambda: [(u_0*E**(1j*k*x),0)], lambda: [(h_0*E**(1j*k*x),0)], lambda: [(u_0*E**(1j*k*x),0)]]
         for i in range(no_steps): step_ops[i] = operator_sequence_1_3_impl[i]()[0][0]
+        step_ops[2]=step_ops[0]
 
         for i in range(0,I):
             operator_sequence_1_3_impl.append(lambda i=i: [(step_ops[0],0),(-1/2*dt*A_u*step_ops[0],0),(-1/2*dt*A_u,1)])
@@ -278,9 +285,12 @@ for order_to_run in range(4):
         #]
         operator_sequence_1_3_expl = [lambda: [(u_0*E**(1j*k*x),0)], lambda: [(h_0*E**(1j*k*x),0)], lambda: [(u_0*E**(1j*k*x),0)]]
         for i in range(no_steps): step_ops[i] = operator_sequence_1_3_expl[i]()[0][0]
+        step_ops[2]=step_ops[0]
 
         for i in range(0,I):
-            operator_sequence_1_3_expl.append(lambda i=i: [(step_ops[0],0),(-1/2*dt*A_u*step_ops[0],0),(-1/2*dt*A_u,1)])
+            if i==0:
+                operator_sequence_1_3_expl.append(lambda i=i: [(step_ops[0],0),(-1/2*dt*A_u*step_ops[0],0),(-1/2*dt*A_u,1)])
+            else:operator_sequence_1_3_expl.append(lambda i=i: [(step_ops[3],0)])
             operator_sequence_1_3_expl.append(lambda i=i: [(step_ops[1],0),(-1/2*dt*A_h*step_ops[1],0),(-1/2*dt*A_h*step_ops[(i+1)*no_steps-2],0),(-1/2*dt*F*step_ops[0],0),(-1/2*dt*F*step_ops[(i+1)*no_steps],0),(1/4*dt*dt*F*G*step_ops[1],0),(1/4*dt*dt*F*G,1)])
             operator_sequence_1_3_expl.append(lambda i=i: [(step_ops[(i+1)*no_steps],0),(-1/2*dt*G*step_ops[(i+1)*no_steps+1],0),(-1/2*dt*G*step_ops[1],0)])
 
