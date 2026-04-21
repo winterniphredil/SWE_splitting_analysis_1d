@@ -1,33 +1,28 @@
 import numpy as np
-import scipy.linalg
-import sympy as smp
 from numpy import sin, cos
 from numpy.linalg import inv
-from sympy.parsing.sympy_parser import parse_expr
 import matplotlib.pyplot as plt
-from operator import add
-from scipy.linalg import expm, sinm, cosm
 
-m_ops = [1,2,3,4,5] # the wavenumber 
-Fr_ops = [0.0000001, 0.0001, 0.0025, 0.01, 0.25, 0.75] # the Froude number
+Fr_ops = [0.0000001, 0.0001, 0.0025, 0.01, 0.25, 0.75, 1.25] # the Froude number
 
-scheme_to_run = 1 #CHANGE ME
-iterations = 2 #CHANGE ME
+scheme_to_run = 4 #CHANGE ME
+iterations = 4 #CHANGE ME
 
 L = 1
 N = 20
 x = np.linspace(0, L, N, endpoint=False)
 
+k = 2*np.pi / L
 
 u_0 = 1e-4
 
 T = 1e-4
 dx = L / N
-dt_ops  = [1e-15,2e-3,5e-3,1e-2,2.5e-2,5e-2] # dt
+dt_ops  = [1e-7,2e-3,5e-3,1e-2,2.5e-2,5e-2] # dt
 steps = 1
 
-g = 9.81
-
+h_0 = u_0
+c = 1
 
 # matrix for d/dx
 off_diag = np.ones(N-1)
@@ -42,7 +37,7 @@ I_mat = np.eye(N)
 
 
 
-def exact_update_no_exp(u_0, h_0, k, Fr, c, n, dt):
+def exact_update(u_0, h_0, k, Fr, c, n, dt):
     """
     Calculates the exact result after a single time step of dt for a wave mode
 
@@ -56,16 +51,11 @@ def exact_update_no_exp(u_0, h_0, k, Fr, c, n, dt):
     Returns:
         (tuple): the velocity, the height 
     """
-    #exact_op = np.matrix([[-c*Fr,-c],[-c,-c*Fr]])
-    #exact_exp = expm(1j * exact_op*n*dt) @ (np.matrix([u_0,h_0]).T * np.exp(1j * k*x))
-    #k_num = np.sin(k*dx)/dx
-    k_num = k
+    k_num = sin(k*dx)/dx
     omega_plus_num = c*(Fr+1) * k_num
     omega_minus_num = c*(Fr-1) * k_num
     exact_exp_plus = ( cos(1.*k*x) + omega_plus_num * sin(1.*k*x) * n * dt - 1/2 * (omega_plus_num)**2 * cos(1.*k*x) * n**2 * dt**2 - 1/6 * (omega_plus_num)**3 * sin(1.*k*x) * n**3 * dt**3 )
     exact_exp_minus = ( cos(1.*k*x) + omega_minus_num * sin(1.*k*x) * n * dt - 1/2 * (omega_minus_num)**2 * cos(1.*k*x) * n**2 * dt**2 - 1/6 * (omega_minus_num)**3 * sin(1.*k*x) * n**3 * dt**3 )
-    #return u_0 * np.cos(omega_plus) - h_0 * Fr * np.sin(omega_minus) , h_0 * np.cos(omega_plus) - u_0 * Fr * np.sin(omega_minus) 
-    #return u_0 * np.cos(omega_plus) , h_0 * np.cos(omega_plus)
     return exact_exp_plus*u_0, exact_exp_plus*h_0
 
 def scheme_1(u_n, h_n, Fr, c, dt, dx, its):
@@ -145,11 +135,11 @@ def scheme_2(u_n, h_n, Fr, c, dt, dx, its):
     A = I_mat - dt**2/4 * c * c * D @ D + dt/2 * c * Fr * D
     B = I_mat + dt/2  * c * Fr * D
     for i in range(its):
-        u_prime = np.linalg.solve(B, u_n - dt/2 * c * Fr * d_dx(u_n) - dt/2 * c * d_dx(h_n + h_i[-1]))
-        u_prime_prime = u_n - dt/2 * c * Fr * d_dx(u_n + u_prime) - dt/2 * c * d_dx(h_n)
-        h_temp = np.linalg.solve(A, h_n - dt/2 * c * Fr * d_dx(h_n) - dt/2 * c * d_dx(u_n + u_prime_prime))
+        u_prime = np.linalg.solve(B, u_n - dt/2 * c * Fr * D @ (u_n) - dt/2 * c * D @ (h_n + h_i[-1]))
+        u_prime_prime = u_n - dt/2 * c * Fr * D @ (u_n + u_prime) - dt/2 * c * D @ (h_n)
+        h_temp = np.linalg.solve(A, h_n - dt/2 * c * Fr * D @ (h_n) - dt/2 * c * D @ (u_n + u_prime_prime))
         h_i.append(h_temp)
-        u_i.append(u_prime_prime - dt/2 * c * d_dx(h_i[-1]))
+        u_i.append(u_prime_prime - dt/2 * c * D @ (h_i[-1]))
     return u_i[-1], h_i[-1]
 
 
@@ -204,7 +194,7 @@ def scheme_4(u_n, h_n, Fr, c, dt, dx, its):
     for i in range(its):
         u_rhs = u_n - dt/2 * c * Fr * D @ (u_n)
         u_prime = np.linalg.solve(B, u_rhs)
-        h_rhs = h_n - dt/2 * c * Fr * D @ (h_n + h_i[-1]) - dt/2 * c * D @ (u_n + u_prime) + dt**2/4 * c * D @ D @ (h_n)
+        h_rhs = h_n - dt/2 * c * Fr * D @ (h_n + h_i[-1]) - dt/2 * c * D @ (u_n + u_prime) + dt**2/4 * c * c * D @ D @ (h_n)
         h_temp = np.linalg.solve(A, h_rhs)
         h_i.append(h_temp)
         u_i.append(u_prime - dt/2 * c * D @ (h_n + h_i[-1]))
@@ -224,7 +214,9 @@ def pred_errors(sch, its, k, Fr, c, dt):
     Returns:
         (tuple): the velocity error, the height error
     """
-    eval_namespace = {'Fr':Fr,'k':k,'c':c,'h_0':h_0,'u_0':u_0,'x':x,'dt':dt,'cos':np.cos,'sin':np.sin}
+    k_num = sin(k*dx)/dx
+    omega_plus = c*(Fr+1)
+    eval_namespace = {'Fr':Fr,'k':k_num,'c':c,'h_0':h_0,'u_0':u_0,'x':x - omega_plus*dt,'dt':dt,'cos':cos,'sin':sin}
     with open("splitting_schemes_params_non_dim_exact_2.txt","r") as pred_file:
         predicts = [this_pred.split("\n")[:2] for this_pred in pred_file.read().split("scheme = "+str(sch)+"\niterations = "+str(its)+"\n")][1:]
         pred_eval = []
@@ -239,16 +231,84 @@ def pred_errors(sch, its, k, Fr, c, dt):
             h_pred += pred_eval[i][1]
     return u_pred, h_pred
 
+def plot_solutions_u(split, exact, orig, Fr, dt):
+    """
+    Plots the initial condition, analytic, and splitting scheme solution for u
 
+    Args:
+        split (array): the splitting scheme solution
+        exact (array): the exact solution
+        orig (array): the initial conditions
+    """
+    plt.plot(x,split,color='red',label='splitting scheme solution')
+    plt.plot(x,exact,color='orange',label='analytic solution')
+    plt.plot(x,orig,color='green',label='initial conditions')
+    plt.title("Fr = "+str(Fr)+" and dt = "+str(dt))
+    plt.legend()
+    plt.show()
+    plt.cla()
+
+def plot_solutions_h(split, exact, orig, Fr, dt):
+    """
+    plots the initial condition, analytic, and splitting scheme solution for h
+
+    Args:
+        split (array): the splitting scheme solution
+        exact (array): the exact solution
+        orig (array): the initial conditions
+    """
+    plt.plot(x,split,color='red',label='splitting scheme solution')
+    plt.plot(x,exact,color='orange',label='analytic solution')
+    plt.plot(x,orig,color='green',label='initial conditions')
+    plt.title("Fr = "+str(Fr)+" and dt = "+str(dt))
+    plt.legend()
+    plt.show()
+    plt.cla()
+
+def plot_errors(u_diff, h_diff, u_pred, h_pred):
+    """
+    Plots the numerical errors and predicted errors for both u and h
+
+    Args:
+        u_diff (array): the numerical errors for u
+        h_diff (array): the numerical errors for h
+        u_pred (array): the predicted errors for u
+        h_pred (array): the predicted errors for h
+    """
+    plt.plot(x, u_diff, color='purple', label='u split difference')
+    plt.plot(x, h_diff, color='gray', label='h split difference')
+    plt.plot(x, u_pred, color='magenta', label='u predicted difference')
+    plt.plot(x, h_pred, color='steelblue', label='h predicted difference')
+    plt.title("Fr = "+str(Fr)+" and dt = "+str(dt))
+    plt.legend()
+    plt.show()
+    plt.cla()
+    
+def courant_numbers(Fr, dt, dx):
+    """
+    Calculates and prints the advective and gravitational Courant numbers
+
+    Args:
+        sch (integer): the number of the scheme to retrieve
+        its (integer): the number of iterations
+        k (float): the wave number
+        Fr (float): the Froude number
+        dt (float): the time step
+
+    Returns:
+        (tuple): the velocity error, the height error
+    """
+    courant_no_adv = Fr*dt/dx
+    courant_no_grv = dt/dx
+    print("advection c = ",courant_no_adv)
+    print("gravity c = ",courant_no_grv)
 
 diff_errors_u = []
 diff_errors_h = []
 pred_errors_u = []
 pred_errors_h = []
 
-k_ops = np.array([2*np.pi * m / L for m in m_ops])
 
-k = 2*np.pi / L
 
 schemes = [scheme_1, scheme_2, scheme_3, scheme_4]
 
@@ -268,77 +328,51 @@ for i in range(len(Fr_ops)):
     this_pred_u = []
     this_pred_h = []
     
-    h_0 = u_0
-    c = 1
+    
     
     
     for j in range(len(dt_ops)):
+    
         dt = dt_ops[j]
-        #steps = int(T/dt)
         u = u_0 * np.cos(k * x)
         h = h_0 * np.cos(k * x)
         u_n_split = u.copy()
         h_n_split = h.copy()
-        u_exact, h_exact = exact_update_no_exp(u_0, h_0, k, Fr, c, steps, dt)
+        u_exact, h_exact = exact_update(u_0, h_0, k, Fr, c, steps, dt)
+        
         if j==0:
+        
             small_dt_soln_u, small_dt_soln_h = u_n_split, h_n_split
+            
             for n in range(steps):
-                small_dt_soln_u, small_dt_soln_h = schemes[scheme_to_run-1](small_dt_soln_u, small_dt_soln_u, Fr, c, dt, dx, iterations)
+                small_dt_soln_u, small_dt_soln_h = schemes[scheme_to_run-1](small_dt_soln_u, small_dt_soln_h, Fr, c, dt, dx, iterations)
+                
             small_dt_diff_u = small_dt_soln_u - u_exact
             small_dt_diff_h = small_dt_soln_h - h_exact
+            
         else:
-            
-            
+        
             for n in range(steps):
                 u_n_split, h_n_split = schemes[scheme_to_run-1](u_n_split, h_n_split, Fr, c, dt, dx, iterations)
                 
             u_diff_fixed = u_n_split - u_exact - small_dt_diff_u
             h_diff_fixed = h_n_split - h_exact - small_dt_diff_h
-            #u_diff_fixed = u_n_split - small_dt_soln_u
-            #h_diff_fixed = h_n_split - small_dt_soln_h
-            
-            #plt.plot(x,u_n_split,color='red')
-            #plt.plot(x,u_exact,color='orange')
-            #plt.plot(x,u,color='green')
-            #plt.plot(x,h_n_split,color='blue')
-            #plt.plot(x,h_exact,color='green')
-            plt.plot(x, u_diff_fixed, color='purple', label='u split difference')
-            plt.plot(x, h_diff_fixed, color='gray', label='h split difference')
-            
-            courant_no_adv = Fr*dt/dx
-            courant_no_grv = dt/dx
-            print("advection c = ",courant_no_adv)
-            print("gravity c = ",courant_no_grv)
             
             u_pred, h_pred = pred_errors(scheme_to_run, iterations, k, Fr, c, dt)
-            
-            plt.plot(x, u_pred, color='magenta', label='u predicted difference')
-            plt.plot(x, h_pred, color='steelblue', label='h predicted difference')
-            plt.title("Fr = "+str(Fr)+" and dt = "+str(dt))
-            plt.legend()
-            plt.show()
-            plt.cla()
-            
+           
             this_diff_u.append(np.linalg.norm(u_diff_fixed))
             this_diff_h.append(np.linalg.norm(h_diff_fixed))
             this_pred_u.append(np.linalg.norm(u_pred))
             this_pred_h.append(np.linalg.norm(h_pred))
             
-            #print(np.linalg.norm(u_n_split - u_exact)/dt)
-            
             ratios_u.append(np.linalg.norm(u_diff_fixed)/(np.linalg.norm(u_pred)))
             ratios_h.append(np.linalg.norm(h_diff_fixed)/(np.linalg.norm(h_pred)))
-    
-    #plt.loglog(dt_ops, this_diff_u, 'o-')
-    #plt.show()
-    #k_ops = np.array(k_ops)
     
     rat_for_fr_u.append(ratios_u[5*(i)])
     rat_for_fr_h.append(ratios_h[5*(i)])
     
     diff_errors_u.append(this_diff_u)
     diff_errors_h.append(this_diff_h)
-    #print(this_diff_u)
     
     grad_u_1, intercept = np.polyfit(np.log(dt_ops[1:]), np.log(this_diff_u), 1)
     print("\nFr = "+str(Fr)+"\nEstimated gradient for splitting error (u):", grad_u_1)
@@ -354,17 +388,9 @@ for i in range(len(Fr_ops)):
 
     grad, intercept = np.polyfit(np.log(dt_ops[1:]), np.log(this_pred_h), 1)
     print("Predicted gradient for splitting error (h):", grad)
-    
-    
-
-print("\n\n",rat_for_fr_u)
-print("\n\n",rat_for_fr_h)
 
 grad, intercept = np.polyfit(np.log(Fr_ops), np.log(rat_for_fr_u), 1)
 print("\n\nRatio gradient (using u):", grad)
 grad, intercept = np.polyfit(np.log(Fr_ops), np.log(rat_for_fr_h), 1)
 print("Ratio gradient (using h):", grad)
-#print(diff_errors_u)
-#print(diff_errors_h)
-#print(pred_errors_u)
-#print(pred_errors_h)
+
