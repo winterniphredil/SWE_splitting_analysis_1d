@@ -11,11 +11,11 @@ from scipy.linalg import expm, sinm, cosm
 m_ops = [1,2,3,4,5] # the wavenumber 
 Fr_ops = [0.0000001, 0.0001, 0.0025, 0.01, 0.25, 0.75] # the Froude number
 
-scheme_to_run = 4 #CHANGE ME
-iterations = 1 #CHANGE ME
+scheme_to_run = 1 #CHANGE ME
+iterations = 2 #CHANGE ME
 
 L = 1
-N = 512
+N = 20
 x = np.linspace(0, L, N, endpoint=False)
 
 
@@ -23,7 +23,7 @@ u_0 = 1e-4
 
 T = 1e-4
 dx = L / N
-dt_ops  = [1e-5,5e-5,1e-4,2.5e-4,5e-4] # dt
+dt_ops  = [1e-15,2e-3,5e-3,1e-2,2.5e-2,5e-2] # dt
 steps = 1
 
 g = 9.81
@@ -58,7 +58,8 @@ def exact_update_no_exp(u_0, h_0, k, Fr, c, n, dt):
     """
     #exact_op = np.matrix([[-c*Fr,-c],[-c,-c*Fr]])
     #exact_exp = expm(1j * exact_op*n*dt) @ (np.matrix([u_0,h_0]).T * np.exp(1j * k*x))
-    k_num = np.sin(k*dx)/dx
+    #k_num = np.sin(k*dx)/dx
+    k_num = k
     omega_plus_num = c*(Fr+1) * k_num
     omega_minus_num = c*(Fr-1) * k_num
     exact_exp_plus = ( cos(1.*k*x) + omega_plus_num * sin(1.*k*x) * n * dt - 1/2 * (omega_plus_num)**2 * cos(1.*k*x) * n**2 * dt**2 - 1/6 * (omega_plus_num)**3 * sin(1.*k*x) * n**3 * dt**3 )
@@ -271,45 +272,62 @@ for i in range(len(Fr_ops)):
     c = 1
     
     
-    for dt in dt_ops:
+    for j in range(len(dt_ops)):
+        dt = dt_ops[j]
+        #steps = int(T/dt)
         u = u_0 * np.cos(k * x)
         h = h_0 * np.cos(k * x)
         u_n_split = u.copy()
         h_n_split = h.copy()
-        
-        #steps = int(T/dt)
-        
-        
-        for n in range(steps):
-            u_n_split, h_n_split = schemes[scheme_to_run-1](u_n_split, h_n_split, Fr, c, dt, dx, iterations)
-        
         u_exact, h_exact = exact_update_no_exp(u_0, h_0, k, Fr, c, steps, dt)
-        
-        #plt.plot(x,u_n_split,color='red')
-        #plt.plot(x,u_exact,color='orange')
-        #plt.plot(x,h_n_split,color='blue')
-        #plt.plot(x,h_exact,color='green')
-        #plt.plot(x, u_n_split - u_exact, color='purple', label='u split difference')
-        #plt.plot(x, h_n_split - h_exact, color='gray', label='h split difference')
-        
-        u_pred, h_pred = pred_errors(scheme_to_run, iterations, k, Fr, c, dt)
-        
-        #plt.plot(x, u_pred, color='magenta', label='u predicted difference')
-        #plt.plot(x, h_pred, color='steelblue', label='h predicted difference')
-        #plt.title("Fr = "+str(Fr)+" and dt = "+str(dt))
-        #plt.legend()
-        #plt.show()
-        #plt.cla()
-        
-        this_diff_u.append(np.linalg.norm(u_n_split - u_exact))
-        this_diff_h.append(np.linalg.norm(h_n_split - h_exact))
-        this_pred_u.append(np.linalg.norm(u_pred))
-        this_pred_h.append(np.linalg.norm(h_pred))
-        
-        #print(np.linalg.norm(u_n_split - u_exact)/dt)
-        
-        ratios_u.append(np.linalg.norm(u_n_split - u_exact)/(np.linalg.norm(u_pred)))
-        ratios_h.append(np.linalg.norm(h_n_split - h_exact)/(np.linalg.norm(h_pred)))
+        if j==0:
+            small_dt_soln_u, small_dt_soln_h = u_n_split, h_n_split
+            for n in range(steps):
+                small_dt_soln_u, small_dt_soln_h = schemes[scheme_to_run-1](small_dt_soln_u, small_dt_soln_u, Fr, c, dt, dx, iterations)
+            small_dt_diff_u = small_dt_soln_u - u_exact
+            small_dt_diff_h = small_dt_soln_h - h_exact
+        else:
+            
+            
+            for n in range(steps):
+                u_n_split, h_n_split = schemes[scheme_to_run-1](u_n_split, h_n_split, Fr, c, dt, dx, iterations)
+                
+            u_diff_fixed = u_n_split - u_exact - small_dt_diff_u
+            h_diff_fixed = h_n_split - h_exact - small_dt_diff_h
+            #u_diff_fixed = u_n_split - small_dt_soln_u
+            #h_diff_fixed = h_n_split - small_dt_soln_h
+            
+            #plt.plot(x,u_n_split,color='red')
+            #plt.plot(x,u_exact,color='orange')
+            #plt.plot(x,u,color='green')
+            #plt.plot(x,h_n_split,color='blue')
+            #plt.plot(x,h_exact,color='green')
+            plt.plot(x, u_diff_fixed, color='purple', label='u split difference')
+            plt.plot(x, h_diff_fixed, color='gray', label='h split difference')
+            
+            courant_no_adv = Fr*dt/dx
+            courant_no_grv = dt/dx
+            print("advection c = ",courant_no_adv)
+            print("gravity c = ",courant_no_grv)
+            
+            u_pred, h_pred = pred_errors(scheme_to_run, iterations, k, Fr, c, dt)
+            
+            plt.plot(x, u_pred, color='magenta', label='u predicted difference')
+            plt.plot(x, h_pred, color='steelblue', label='h predicted difference')
+            plt.title("Fr = "+str(Fr)+" and dt = "+str(dt))
+            plt.legend()
+            plt.show()
+            plt.cla()
+            
+            this_diff_u.append(np.linalg.norm(u_diff_fixed))
+            this_diff_h.append(np.linalg.norm(h_diff_fixed))
+            this_pred_u.append(np.linalg.norm(u_pred))
+            this_pred_h.append(np.linalg.norm(h_pred))
+            
+            #print(np.linalg.norm(u_n_split - u_exact)/dt)
+            
+            ratios_u.append(np.linalg.norm(u_diff_fixed)/(np.linalg.norm(u_pred)))
+            ratios_h.append(np.linalg.norm(h_diff_fixed)/(np.linalg.norm(h_pred)))
     
     #plt.loglog(dt_ops, this_diff_u, 'o-')
     #plt.show()
@@ -322,19 +340,19 @@ for i in range(len(Fr_ops)):
     diff_errors_h.append(this_diff_h)
     #print(this_diff_u)
     
-    grad_u_1, intercept = np.polyfit(np.log(dt_ops), np.log(this_diff_u), 1)
+    grad_u_1, intercept = np.polyfit(np.log(dt_ops[1:]), np.log(this_diff_u), 1)
     print("\nFr = "+str(Fr)+"\nEstimated gradient for splitting error (u):", grad_u_1)
 
-    grad_h_1, intercept = np.polyfit(np.log(dt_ops), np.log(this_diff_h), 1)
+    grad_h_1, intercept = np.polyfit(np.log(dt_ops[1:]), np.log(this_diff_h), 1)
     print("Estimated gradient for splitting error (h):", grad_h_1)
     
     pred_errors_u.append(this_pred_u)
     pred_errors_u.append(this_pred_h)
     
-    grad, intercept = np.polyfit(np.log(dt_ops), np.log(this_pred_u), 1)
+    grad, intercept = np.polyfit(np.log(dt_ops[1:]), np.log(this_pred_u), 1)
     print("\nPredicted gradient for splitting error (u):", grad)
 
-    grad, intercept = np.polyfit(np.log(dt_ops), np.log(this_pred_h), 1)
+    grad, intercept = np.polyfit(np.log(dt_ops[1:]), np.log(this_pred_h), 1)
     print("Predicted gradient for splitting error (h):", grad)
     
     
