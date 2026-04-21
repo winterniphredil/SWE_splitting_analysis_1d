@@ -1,21 +1,8 @@
 from sympy import symbols, expand, cancel, re, E, series, sin, cos
-from sympy import factor_terms
 import sympy as smp
 import numpy as np
-from scipy.linalg import expm
 
-file_to_write =  open("splitting_schemes_params_non_dim_exact_2.txt","w")
-
-def taylor_exp_3(A):
-    """
-    Calculates the Taylor expansion up to third order of e^A for operator A (2x2 matrix)
-
-    Args:
-        A (2x2 matrix): operator 
-    Returns:
-        (expression): the Taylor expansion to third order
-    """
-    return smp.eye(2) + dt*A + dt**2/2 * A*A + dt**3/6 * A*A*A
+file_to_write =  open("splitting_schemes_params_non_dim_exact.txt","w")
 
 def output(result,n,I):
     """
@@ -117,31 +104,14 @@ def simplify_commutators_for_3(expr):
 A_h, A_u, F, G = symbols('A_h A_u F G')
 dt = symbols('dt', real = True)
 
-
-
-
 omega, k, g, U, H, u_0, h_0, Fr, c = symbols('omega k g U H u_0 h_0 Fr c', real = True)
-x = symbols('x', real = True)
-t = symbols('t', real = True)
+x, t = symbols('x t', real = True)
 
-
-unsplit_op = [[(- A_u*u_0 - G*h_0) * dt], [(- A_h*h_0 - F*u_0) * dt]]  #the concurrent operator (negatives encoded elsewhere - CHECK??????)
-unsplit_exp = [[u_0], [h_0]] + unsplit_op
-
-#### 1
-I_2 = np.eye(2)
-inv = smp.Matrix([[0,1],[1,0]])
-
-exact_exp = (I_2 - dt * ( c * Fr * inv + c * I_2 )) *re(smp.exp(1j*k*x)) @ smp.Matrix([u_0,h_0])
-
-#### 2
 omega_plus = c * (Fr + 1)
-exact_exp = re(smp.exp(1j*k*(x - omega_plus*dt))) * smp.Matrix([u_0,h_0])
 exact_exp = ( cos(1.*k*x) + k*omega_plus * sin(1.*k*x) * dt - 1/2 * (k*omega_plus)**2 * cos(1.*k*x) * dt**2 - 1/6 * (k*omega_plus)**3 * sin(1.*k*x) * dt **3 ) * smp.Matrix([u_0,h_0])
 
 operators = [A_h, A_u, F, G] #array of operators - this defines the general order in which they will be treated
-#op_repl = {A_u: k*U, A_h: k*U, F: k*H, G:k*g} #dimensional
-op_repl = {A_u: 1j*k*c*Fr, A_h: 1j*k*c*Fr, F: 1j*k*c, G:1j*k*c}
+op_repl = {A_u: 1j*k*c*Fr, A_h: 1j*k*c*Fr, F: 1j*k*c, G:1j*k*c} #non-dimensionalised
 
 def rearrange_operator(operators_list):
     """
@@ -177,13 +147,8 @@ def calc_splitting_error(operator_sequence, step_ops, step_count, order, n, I):
             current_ops = operator_sequence[i]()
             step_ops[i] = rearrange_operator(current_ops)
     x_vec = [step_ops[step_count-1], step_ops[step_count-2]]
-    #for i in [0,1]:print(series(smp.expand(exact_exp[i],dt), dt, 1j*k*x, n=3)) 
     diff = [smp.series(x_vec[i],dt,0,6).removeO() - exact_exp[i] for i in [0,1]]
-    #diff = [exact_exp[i][0] for i in [0,1]]
-    diff_raw = smp.collect(smp.expand(diff[1]),dt).coeff(dt,2)
-    print("Raw O(dt**2) h coeff:")
-    for term in diff_raw.as_ordered_terms():print(term)
-    diff = [smp.collect(smp.expand(diff_i), dt).coeff(dt, order) for diff_i in diff] # only keep dt**2 term
+    diff = [smp.collect(smp.expand(diff_i), dt).coeff(dt, order) for diff_i in diff]
     diff = [smp.expand(diff_i.subs(op_repl)) for diff_i in diff]
     diff = [smp.simplify(diff_i) for diff_i in diff]
     term_coeffs = [collect_terms(diff_i) for diff_i in diff]
@@ -199,21 +164,20 @@ def calc_splitting_error(operator_sequence, step_ops, step_count, order, n, I):
 
 
 
-
 for order_to_run in range(4):
 
     print("\n\n\nORDER = "+str(order_to_run)+"\n\n")
     file_to_write.write("\n\n\nORDER = "+str(order_to_run)+"\n\n")
+    
+    
+    ### Scheme 1.1
+    
+    
     for I in range(1,5):
         no_steps = 3
         step_ops = []
         for i in range(no_steps*(I+1)): step_ops.append(1)
 
-        #operator_sequence_1_1 = [
-        #    lambda: [(1,0),(-dt*A_u,0),(-1/2*dt*G,0)],
-        #    lambda: [(1,0),(-dt*A_h,0),(-1/2*dt*F,0),(-1/2*dt*F*step_ops[0],0),(1/4*dt*dt*F*G,1)],
-        #    lambda: [(step_ops[0],0),(-1/2*dt*G*step_ops[1],0)]
-        #]
         operator_sequence_1_1 = [lambda: [(u_0*E**(1j*k*x),0)], lambda: [(h_0*E**(1j*k*x),0)], lambda: [(u_0*E**(1j*k*x),0)]]
         for i in range(no_steps): step_ops[i] = operator_sequence_1_1[i]()[0][0]
         step_ops[2]=step_ops[0]
@@ -224,19 +188,18 @@ for order_to_run in range(4):
             operator_sequence_1_1.append(lambda i=i: [(step_ops[(i+1)*no_steps],0),(-1/2*dt*G*step_ops[(i+1)*no_steps+1],0)])
 
         calc_splitting_error(operator_sequence_1_1, step_ops, no_steps*(I+1), order_to_run, 1, I)
-
+    
+    
+    
+    ### Scheme 1.2
+    
+    
 
     for I in range(1,5):
         no_steps = 4
         step_ops = []
         for i in range(no_steps*(I+1)): step_ops.append(1)
 
-        #operator_sequence_1_2 = [
-        #    lambda: [(1,0),(-dt*A_u,1/2),(-dt*G,0)],
-        #    lambda: [(1,0),(-1/2*dt*A_u,0),(-1/2*dt*A_u*step_ops[0],0),(-1/2*dt*G,0)],
-        #    lambda: [(1,0),(-dt*A_h,1/2),(-dt*F,0),(-1/2*dt*F*step_ops[1],0),(1/4*dt*dt*F*G,1)],
-        #    lambda: [(step_ops[1],0),(-1/2*dt*G*step_ops[2],0)]
-        #]
         operator_sequence_1_2 = [lambda: [(u_0*E**(1j*k*x),0)], lambda: [(u_0*E**(1j*k*x),0)], lambda: [(h_0*E**(1j*k*x),0)], lambda: [(u_0*E**(1j*k*x),0)]]
         for i in range(no_steps): step_ops[i] = operator_sequence_1_2[i]()[0][0]
         step_ops[1]=step_ops[0]
@@ -250,17 +213,17 @@ for order_to_run in range(4):
 
         calc_splitting_error(operator_sequence_1_2, step_ops, no_steps*(I+1), order_to_run, 2, I)
 
+    
+    
+    ### Scheme 1.3 with implicit mass advection
+    
+    
 
     for I in range(1,5):
         no_steps = 3
         step_ops = []
         for i in range(no_steps*(I+1)): step_ops.append(1)
 
-        #operator_sequence_1_3_impl = [
-        #    lambda: [(1,0),(-dt*A_u,1/2)],
-        #    lambda: [(1,0),(-dt*A_h,1/2),(-1/2*dt*F,0),(-1/2*dt*F*step_ops[0],0),(1/2*dt*dt*F*G,1/2)],
-        #    lambda: [(step_ops[0],0),(-1/2*dt*G,0),(-1/2*dt*G*step_ops[1],0)]
-        #]
         operator_sequence_1_3_impl = [lambda: [(u_0*E**(1j*k*x),0)], lambda: [(h_0*E**(1j*k*x),0)], lambda: [(u_0*E**(1j*k*x),0)]]
         for i in range(no_steps): step_ops[i] = operator_sequence_1_3_impl[i]()[0][0]
         step_ops[2]=step_ops[0]
@@ -272,17 +235,17 @@ for order_to_run in range(4):
 
         calc_splitting_error(operator_sequence_1_3_impl, step_ops, no_steps*(I+1), order_to_run, 3, I)
 
+    
+    
+    ### Scheme 1.3 with explicit mass advection
+    
+    
 
     for I in range(1,5):
         no_steps = 3
         step_ops = []
         for i in range(no_steps*(I+1)): step_ops.append(1)
 
-        #operator_sequence_1_3_expl = [
-        #    lambda: [(1,0),(-dt*A_u,1/2)],
-        #    lambda: [(1,0),(-dt*A_h,0),(-1/2*dt*F,0),(-1/2*dt*F*step_ops[0],0),(1/2*dt*dt*F*G,1/2)],
-        #    lambda: [(step_ops[0],0),(-1/2*dt*G,0),(-1/2*dt*G*step_ops[1],0)]
-        #]
         operator_sequence_1_3_expl = [lambda: [(u_0*E**(1j*k*x),0)], lambda: [(h_0*E**(1j*k*x),0)], lambda: [(u_0*E**(1j*k*x),0)]]
         for i in range(no_steps): step_ops[i] = operator_sequence_1_3_expl[i]()[0][0]
         step_ops[2]=step_ops[0]

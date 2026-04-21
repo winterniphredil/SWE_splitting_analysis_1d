@@ -217,7 +217,7 @@ def pred_errors(sch, its, k, Fr, c, dt):
     k_num = sin(k*dx)/dx
     omega_plus = c*(Fr+1)
     eval_namespace = {'Fr':Fr,'k':k_num,'c':c,'h_0':h_0,'u_0':u_0,'x':x - omega_plus*dt,'dt':dt,'cos':cos,'sin':sin}
-    with open("splitting_schemes_params_non_dim_exact_2.txt","r") as pred_file:
+    with open("splitting_schemes_params_non_dim_exact.txt","r") as pred_file:
         predicts = [this_pred.split("\n")[:2] for this_pred in pred_file.read().split("scheme = "+str(sch)+"\niterations = "+str(its)+"\n")][1:]
         pred_eval = []
         for i in range(len(predicts)):
