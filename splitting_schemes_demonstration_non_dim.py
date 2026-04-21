@@ -32,9 +32,7 @@ D[0,-1] = -1
 D[-1,0] = 1
 D /= (2*dx)
 
-
 I_mat = np.eye(N)
-
 
 
 def exact_update(u_0, h_0, k, Fr, c, n, dt):
@@ -46,6 +44,8 @@ def exact_update(u_0, h_0, k, Fr, c, n, dt):
         h_n (array): the height
         k (float): the wave mode
         Fr (float): the Froude number
+        c (float): the gravitational wave speed
+        n (integer): the number of time steps
         dt (float): the time step
 
     Returns:
@@ -66,6 +66,7 @@ def scheme_1(u_n, h_n, Fr, c, dt, dx, its):
         u_n (array): the velocity
         h_n (array): the height
         Fr (float): the Froude number
+        c (float): the gravitational wave speed
         dt (float): the time step
         dx (float): the grid spacing
         its (integer): the number of iterations
@@ -83,17 +84,17 @@ def scheme_1(u_n, h_n, Fr, c, dt, dx, its):
         h_i.append(h_temp)
         u_temp = u_prime - dt/2 * c * D @ (h_i[-1])
         u_i.append(u_temp)
-        #print(np.linalg.norm(u_prime) - np.linalg.norm(h_temp))
     return u_i[-1], h_i[-1]
 
 def scheme_2_expl(u_n, h_n, Fr, c, dt, dx, its):
     """
-    Calculates the result after a single time step of dt using 1.2
+    Calculates the result after a single time step of dt using 1.2 with explicit mass advection
 
     Args:
         u_n (array): the velocity
         h_n (array): the height
         Fr (float): the Froude number
+        c (float): the gravitational wave speed
         dt (float): the time step
         dx (float): the grid spacing
         its (integer): the number of iterations
@@ -123,6 +124,7 @@ def scheme_2(u_n, h_n, Fr, c, dt, dx, its):
         u_n (array): the velocity
         h_n (array): the height
         Fr (float): the Froude number
+        c (float): the gravitational wave speed
         dt (float): the time step
         dx (float): the grid spacing
         its (integer): the number of iterations
@@ -151,6 +153,7 @@ def scheme_3(u_n, h_n, Fr, c, dt, dx, its):
         u_n (array): the velocity
         h_n (array): the height
         Fr (float): the Froude number
+        c (float): the gravitational wave speed
         dt (float): the time step
         dx (float): the grid spacing
         its (integer): the number of iterations
@@ -180,6 +183,7 @@ def scheme_4(u_n, h_n, Fr, c, dt, dx, its):
         u_n (array): the velocity
         h_n (array): the height
         Fr (float): the Froude number
+        c (float): the gravitational wave speed
         dt (float): the time step
         dx (float): the grid spacing
         its (integer): the number of iterations
@@ -209,6 +213,7 @@ def pred_errors(sch, its, k, Fr, c, dt):
         its (integer): the number of iterations
         k (float): the wave number
         Fr (float): the Froude number
+        c (float): the gravitational wave speed
         dt (float): the time step
 
     Returns:
@@ -239,6 +244,8 @@ def plot_solutions_u(split, exact, orig, Fr, dt):
         split (array): the splitting scheme solution
         exact (array): the exact solution
         orig (array): the initial conditions
+        Fr (float): the Froude number
+        dt (float): the time step
     """
     plt.plot(x,split,color='red',label='splitting scheme solution')
     plt.plot(x,exact,color='orange',label='analytic solution')
@@ -256,6 +263,8 @@ def plot_solutions_h(split, exact, orig, Fr, dt):
         split (array): the splitting scheme solution
         exact (array): the exact solution
         orig (array): the initial conditions
+        Fr (float): the Froude number
+        dt (float): the time step
     """
     plt.plot(x,split,color='red',label='splitting scheme solution')
     plt.plot(x,exact,color='orange',label='analytic solution')
@@ -265,7 +274,7 @@ def plot_solutions_h(split, exact, orig, Fr, dt):
     plt.show()
     plt.cla()
 
-def plot_errors(u_diff, h_diff, u_pred, h_pred):
+def plot_errors(u_diff, h_diff, u_pred, h_pred, Fr, dt):
     """
     Plots the numerical errors and predicted errors for both u and h
 
@@ -274,6 +283,8 @@ def plot_errors(u_diff, h_diff, u_pred, h_pred):
         h_diff (array): the numerical errors for h
         u_pred (array): the predicted errors for u
         h_pred (array): the predicted errors for h
+        Fr (float): the Froude number
+        dt (float): the time step
     """
     plt.plot(x, u_diff, color='purple', label='u split difference')
     plt.plot(x, h_diff, color='gray', label='h split difference')
@@ -289,14 +300,9 @@ def courant_numbers(Fr, dt, dx):
     Calculates and prints the advective and gravitational Courant numbers
 
     Args:
-        sch (integer): the number of the scheme to retrieve
-        its (integer): the number of iterations
-        k (float): the wave number
         Fr (float): the Froude number
         dt (float): the time step
-
-    Returns:
-        (tuple): the velocity error, the height error
+        dx (float): the spatial grid spacing
     """
     courant_no_adv = Fr*dt/dx
     courant_no_grv = dt/dx
@@ -307,8 +313,6 @@ diff_errors_u = []
 diff_errors_h = []
 pred_errors_u = []
 pred_errors_h = []
-
-
 
 schemes = [scheme_1, scheme_2, scheme_3, scheme_4]
 
@@ -323,21 +327,20 @@ print("Iterations = "+str(iterations))
 
 for i in range(len(Fr_ops)):
     Fr = Fr_ops[i]
+    
     this_diff_u = []
     this_diff_h = []
     this_pred_u = []
     this_pred_h = []
     
-    
-    
-    
     for j in range(len(dt_ops)):
-    
         dt = dt_ops[j]
+        
         u = u_0 * np.cos(k * x)
         h = h_0 * np.cos(k * x)
         u_n_split = u.copy()
         h_n_split = h.copy()
+        
         u_exact, h_exact = exact_update(u_0, h_0, k, Fr, c, steps, dt)
         
         if j==0:
