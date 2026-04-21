@@ -4,6 +4,19 @@ import numpy as np
 
 file_to_write =  open("splitting_schemes_params_non_dim_exact.txt","w")
 
+A_h, A_u, F, G = symbols('A_h A_u F G')
+omega, k, g, U, H, u_0, h_0, Fr, c = symbols('omega k g U H u_0 h_0 Fr c', real = True)
+x, t = symbols('x t', real = True)
+dt = symbols('dt', real = True)
+
+omega_plus = c * (Fr + 1)
+exact_exp = ( cos(1.*k*x) + k*omega_plus * sin(1.*k*x) * dt - 1/2 * (k*omega_plus)**2 * cos(1.*k*x) * dt**2 - 1/6 * (k*omega_plus)**3 * sin(1.*k*x) * dt **3 ) * smp.Matrix([u_0,h_0])
+
+operators = [A_h, A_u, F, G] #array of operators - this defines the general order in which they will be treated
+op_repl = {A_u: 1j*k*c*Fr, A_h: 1j*k*c*Fr, F: 1j*k*c, G:1j*k*c} #non-dimensionalised
+
+
+
 def output(result,n,I):
     """
     Writes the result to the output file, can be modified to print output to console
@@ -58,60 +71,6 @@ def collect_terms(expr):
         term_coeffs[this_term] += coeff
 
     return term_coeffs
-
-def simplify_commutators_for_3(expr):
-    """
-    Uses commutation relations to simplify an expression expr into a minimal number of terms using algebraic relations
-
-    Args:
-        expr (expression): the expression to be simplified
-
-    Returns:
-        (expression): the simplified expression
-    """
-    comm_rules = { 
-        (A_h, A_u): lambda A,B: B*A,
-        (A_h, G): lambda A,B: B*A - A_u*B + B*A_u,
-        (A_h, F): lambda A,B: B*A - A_u*B + B*A_u
-    } # commutation rules
-    
-    changed = True
-    while changed: # iterate until all simplifications made
-        changed = False
-        new_terms = []
-        for term in smp.expand(expr).as_ordered_terms(): # iterate through each additive term
-            if term.is_Mul:
-                factors = list(term.args)
-            else:
-                factors = [term]
-            
-            i = 0
-            while i < len(factors)-1:
-                pair = (factors[i], factors[i+1])
-                if pair in comm_rules:
-                    factors[i:i+2] = [comm_rules[pair](factors[i], factors[i+1])] # replace if in comm_rules
-                    changed = True
-                    factors = smp.expand(smp.Mul(*factors)).as_ordered_factors() if len(factors) > 1 else factors
-                    i = -1  # restart iterations because may now contain new term from comm_rules
-                i += 1
-            new_terms.append(smp.Mul(*factors)) # add the simplified result of this term
-        expr_new = sum(new_terms) # re-generate the expression with the simplified terms
-        if expr_new != expr: # determine if this made a difference to the expression
-            expr = expr_new
-            changed = True
-    return expr
-
-A_h, A_u, F, G = symbols('A_h A_u F G')
-dt = symbols('dt', real = True)
-
-omega, k, g, U, H, u_0, h_0, Fr, c = symbols('omega k g U H u_0 h_0 Fr c', real = True)
-x, t = symbols('x t', real = True)
-
-omega_plus = c * (Fr + 1)
-exact_exp = ( cos(1.*k*x) + k*omega_plus * sin(1.*k*x) * dt - 1/2 * (k*omega_plus)**2 * cos(1.*k*x) * dt**2 - 1/6 * (k*omega_plus)**3 * sin(1.*k*x) * dt **3 ) * smp.Matrix([u_0,h_0])
-
-operators = [A_h, A_u, F, G] #array of operators - this defines the general order in which they will be treated
-op_repl = {A_u: 1j*k*c*Fr, A_h: 1j*k*c*Fr, F: 1j*k*c, G:1j*k*c} #non-dimensionalised
 
 def rearrange_operator(operators_list):
     """
