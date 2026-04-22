@@ -3,13 +3,13 @@ from numpy import sin, cos
 from numpy.linalg import inv
 import matplotlib.pyplot as plt
 
-Fr_ops = [0.0000001, 0.0001, 0.0025, 0.01, 0.25, 0.75, 1.25] # the Froude number
+Fr_ops = [1e-7,5e-5,1e-4,5e-3,1e-3,0.01,0.025,0.0325,0.05,0.075,0.1,0.15,0.2,0.25,0.35,0.5,0.75,1] # the Froude number
 
 scheme_to_run = 4 #CHANGE ME
-iterations = 4 #CHANGE ME
+iterations = 2 #CHANGE ME
 
 L = 1
-N = 20
+N = 256
 x = np.linspace(0, L, N, endpoint=False)
 
 k = 2*np.pi / L
@@ -57,6 +57,31 @@ def exact_update(u_0, h_0, k, Fr, c, n, dt):
     exact_exp_plus = ( cos(1.*k*x) + omega_plus_num * sin(1.*k*x) * n * dt - 1/2 * (omega_plus_num)**2 * cos(1.*k*x) * n**2 * dt**2 - 1/6 * (omega_plus_num)**3 * sin(1.*k*x) * n**3 * dt**3 )
     exact_exp_minus = ( cos(1.*k*x) + omega_minus_num * sin(1.*k*x) * n * dt - 1/2 * (omega_minus_num)**2 * cos(1.*k*x) * n**2 * dt**2 - 1/6 * (omega_minus_num)**3 * sin(1.*k*x) * n**3 * dt**3 )
     return exact_exp_plus*u_0, exact_exp_plus*h_0
+
+def RK4(u_0, h_0, k, Fr, c, dt):
+    """
+    Calculates the RK4 result after a single time step of dt for a wave mode
+
+    Args:
+        u_n (array): the velocity
+        h_n (array): the height
+        k (float): the wave mode
+        Fr (float): the Froude number
+        c (float): the gravitational wave speed
+        dt (float): the time step
+
+    Returns:
+        (tuple): the velocity, the height 
+    """
+    y_0 = np.concatenate((u_0,h_0))
+    mat = np.block([[Fr*I_mat,I_mat],[I_mat,Fr*I_mat]])
+    D_mat = np.block([[D,np.zeros((N,N))],[np.zeros((N,N)),D]])
+    k1 = - mat @ D_mat @ y_0
+    k2 = - mat @ D_mat @ (y_0 + dt/2 * k1)
+    k3 = - mat @ D_mat @ (y_0 + dt/2 * k2)
+    k4 = - mat @ D_mat @ (y_0 + dt * k3)
+    y_1 = y_0 + dt/6 * (k1 + 2 * k2 + 2 * k3 + k4)
+    return y_1[:N], y_1[N:]
 
 def scheme_1(u_n, h_n, Fr, c, dt, dx, its):
     """
@@ -236,38 +261,42 @@ def pred_errors(sch, its, k, Fr, c, dt):
             h_pred += pred_eval[i][1]
     return u_pred, h_pred
 
-def plot_solutions_u(split, exact, orig, Fr, dt):
+def plot_solutions_u(split, exact, rk4, orig, Fr, dt):
     """
     Plots the initial condition, analytic, and splitting scheme solution for u
 
     Args:
         split (array): the splitting scheme solution
         exact (array): the exact solution
+        rk4 (array): the RK4 solution
         orig (array): the initial conditions
         Fr (float): the Froude number
         dt (float): the time step
     """
     plt.plot(x,split,color='red',label='splitting scheme solution')
     plt.plot(x,exact,color='orange',label='analytic solution')
+    plt.plot(x,rk4,color='yellow',label='RK4 solution')
     plt.plot(x,orig,color='green',label='initial conditions')
     plt.title("Fr = "+str(Fr)+" and dt = "+str(dt))
     plt.legend()
     plt.show()
     plt.cla()
 
-def plot_solutions_h(split, exact, orig, Fr, dt):
+def plot_solutions_h(split, exact, rk4, orig, Fr, dt):
     """
     plots the initial condition, analytic, and splitting scheme solution for h
 
     Args:
         split (array): the splitting scheme solution
         exact (array): the exact solution
+        rk4 (array): the RK4 solution
         orig (array): the initial conditions
         Fr (float): the Froude number
         dt (float): the time step
     """
     plt.plot(x,split,color='red',label='splitting scheme solution')
     plt.plot(x,exact,color='orange',label='analytic solution')
+    plt.plot(x,rk4,color='yellow',label='RK4 solution')
     plt.plot(x,orig,color='green',label='initial conditions')
     plt.title("Fr = "+str(Fr)+" and dt = "+str(dt))
     plt.legend()
@@ -309,18 +338,38 @@ def courant_numbers(Fr, dt, dx):
     print("advection c = ",courant_no_adv)
     print("gravity c = ",courant_no_grv)
 
-diff_errors_u = []
-diff_errors_h = []
-pred_errors_u = []
-pred_errors_h = []
+
+def plot_grads_against_Fr(u_num, h_num, u_pred, h_pred, Frs):
+    """
+    Plots the numerical errors and predicted errors for both u and h
+
+    Args:
+        u_diff (array): the numerical gradients for u
+        h_diff (array): the numerical gradients for h
+        u_pred (array): the predicted gradients for u
+        h_pred (array): the predicted gradients for h
+        Frs (list): the Froude numbers
+    """
+    plt.plot(Frs, u_num, color='purple', label='u numerical order of time')
+    plt.plot(Frs, h_num, color='gray', label='h numerical order of time')
+    plt.plot(Frs, u_pred, color='magenta', label='u predicted order of time')
+    plt.plot(Frs, h_pred, color='steelblue', label='h predicted order of time')
+    plt.xlabel("Fr")
+    plt.ylabel("order")
+    plt.ylim((1.9,3.1))
+    plt.title("Scheme = "+str(scheme_to_run)+", Iterations = "+str(iterations))
+    plt.legend()
+    plt.show()
+    plt.cla()
+
 
 schemes = [scheme_1, scheme_2, scheme_3, scheme_4]
 
-ratios_u = []
-ratios_h = []
+grad_u_for_fr = []
+grad_h_for_fr = []
 
-rat_for_fr_u = []
-rat_for_fr_h = []
+grad_u_for_fr_pred = []
+grad_h_for_fr_pred = []
 
 print("Scheme = "+str(scheme_to_run))
 print("Iterations = "+str(iterations))
@@ -342,6 +391,7 @@ for i in range(len(Fr_ops)):
         h_n_split = h.copy()
         
         u_exact, h_exact = exact_update(u_0, h_0, k, Fr, c, steps, dt)
+        u_rk4, h_rk4 = RK4(u, h, k, Fr, c, dt)
         
         if j==0:
         
@@ -367,33 +417,22 @@ for i in range(len(Fr_ops)):
             this_diff_h.append(np.linalg.norm(h_diff_fixed))
             this_pred_u.append(np.linalg.norm(u_pred))
             this_pred_h.append(np.linalg.norm(h_pred))
-            
-            ratios_u.append(np.linalg.norm(u_diff_fixed)/(np.linalg.norm(u_pred)))
-            ratios_h.append(np.linalg.norm(h_diff_fixed)/(np.linalg.norm(h_pred)))
+                        
     
-    rat_for_fr_u.append(ratios_u[5*(i)])
-    rat_for_fr_h.append(ratios_h[5*(i)])
-    
-    diff_errors_u.append(this_diff_u)
-    diff_errors_h.append(this_diff_h)
-    
-    grad_u_1, intercept = np.polyfit(np.log(dt_ops[1:]), np.log(this_diff_u), 1)
-    print("\nFr = "+str(Fr)+"\nEstimated gradient for splitting error (u):", grad_u_1)
+    grad, intercept = np.polyfit(np.log(dt_ops[1:]), np.log(this_diff_u), 1)
+    print("\nFr = "+str(Fr)+"\nEstimated gradient for splitting error (u):", grad)
+    grad_u_for_fr.append(grad)
 
-    grad_h_1, intercept = np.polyfit(np.log(dt_ops[1:]), np.log(this_diff_h), 1)
-    print("Estimated gradient for splitting error (h):", grad_h_1)
-    
-    pred_errors_u.append(this_pred_u)
-    pred_errors_u.append(this_pred_h)
+    grad_h, intercept = np.polyfit(np.log(dt_ops[1:]), np.log(this_diff_h), 1)
+    print("Estimated gradient for splitting error (h):", grad_h)
+    grad_h_for_fr.append(grad)
     
     grad, intercept = np.polyfit(np.log(dt_ops[1:]), np.log(this_pred_u), 1)
     print("\nPredicted gradient for splitting error (u):", grad)
+    grad_u_for_fr_pred.append(grad)
 
     grad, intercept = np.polyfit(np.log(dt_ops[1:]), np.log(this_pred_h), 1)
     print("Predicted gradient for splitting error (h):", grad)
+    grad_h_for_fr_pred.append(grad)
 
-grad, intercept = np.polyfit(np.log(Fr_ops), np.log(rat_for_fr_u), 1)
-print("\n\nRatio gradient (using u):", grad)
-grad, intercept = np.polyfit(np.log(Fr_ops), np.log(rat_for_fr_h), 1)
-print("Ratio gradient (using h):", grad)
-
+plot_grads_against_Fr(grad_u_for_fr, grad_h_for_fr, grad_u_for_fr_pred, grad_h_for_fr_pred, Fr_ops)
