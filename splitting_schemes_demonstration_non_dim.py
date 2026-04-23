@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 
 Fr_ops = [1e-8,1e-6,5e-5,1e-4,5e-3,1e-3,0.01,0.025,0.0325,0.05,0.075,0.1,0.15,0.2,0.25,0.35,0.5,0.75,1] # the Froude number
 
-scheme_to_run = 2 #CHANGE ME
-iterations = 2 #CHANGE ME
+scheme_to_run = 4 #CHANGE ME
+iterations = 4 #CHANGE ME
 
 plt_u_solns = False #CHANGE ME
 plt_h_solns = False #CHANGE ME
@@ -408,7 +408,7 @@ for i in range(len(Fr_ops)):
         if plt_h_solns:
             _, h_rk4 = RK4(u, h, k, Fr, c, dt)
             plot_solutions(h_n_split, h_exact, h_rk4, h, Fr, dt) 
-        if plt_erros:plot_errors(u_diff_fixed, h_diff_fixed, u_pred, h_pred, Fr, dt)
+        if plt_errors:plot_errors(u_diff_fixed, h_diff_fixed, u_pred, h_pred, Fr, dt)
         
         if print_c:courant_numbers(Fr, dt, dx)
         
