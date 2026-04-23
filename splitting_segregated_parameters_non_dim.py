@@ -123,7 +123,7 @@ def calc_splitting_error(operator_sequence, step_ops, step_count, order, n, I):
 
 
 
-for order_to_run in range(4):
+for order_to_run in range(5):
 
     print("\n\n\nORDER = "+str(order_to_run)+"\n\n")
     file_to_write.write("\n\n\nORDER = "+str(order_to_run)+"\n\n")
@@ -213,8 +213,8 @@ for order_to_run in range(4):
             if i==0:
                 operator_sequence_1_3_expl.append(lambda i=i: [(step_ops[0],0),(-1/2*dt*A_u*step_ops[0],0),(-1/2*dt*A_u,1)])
             else:operator_sequence_1_3_expl.append(lambda i=i: [(step_ops[3],0)])
-            operator_sequence_1_3_expl.append(lambda i=i: [(step_ops[1],0),(-1/2*dt*A_h*step_ops[1],0),(-1/2*dt*A_h*step_ops[(i+1)*no_steps-2],0),(-1/2*dt*F*step_ops[0],0),(-1/2*dt*F*step_ops[(i+1)*no_steps],0),(1/4*dt*dt*F*G*step_ops[1],0),(1/4*dt*dt*F*G,1)])
-            operator_sequence_1_3_expl.append(lambda i=i: [(step_ops[(i+1)*no_steps],0),(-1/2*dt*G*step_ops[(i+1)*no_steps+1],0),(-1/2*dt*G*step_ops[1],0)])
+            operator_sequence_1_3_expl.append(lambda i=i: [(step_ops[1],0),(-1/2*dt*A_h*step_ops[1],0),(-1/2*dt*A_h*step_ops[(i+1)*no_steps-2],0),(-1/2*dt*F*step_ops[0],0),(-1/2*dt*F*step_ops[3],0),(1/4*dt*dt*F*G*step_ops[1],0),(1/4*dt*dt*F*G,1)])
+            operator_sequence_1_3_expl.append(lambda i=i: [(step_ops[3],0),(-1/2*dt*G*step_ops[(i+1)*no_steps+1],0),(-1/2*dt*G*step_ops[1],0)])
 
 
         calc_splitting_error(operator_sequence_1_3_expl, step_ops, no_steps*(I+1), order_to_run, 4, I)

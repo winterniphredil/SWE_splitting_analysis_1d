@@ -3,14 +3,14 @@ from numpy import sin, cos
 from numpy.linalg import inv
 import matplotlib.pyplot as plt
 
-Fr_ops = [1e-8,1e-6,5e-5,1e-4,5e-3,1e-3,0.01,0.025,0.0325,0.05,0.075,0.1,0.15,0.2,0.25,0.35,0.5,0.75,1] # the Froude number
+Fr_ops = [1e-8,1e-6,5e-5,1e-4,5e-3,1e-3,0.01,0.025,0.0325,0.05,0.075,0.1,0.15,0.2,0.25,0.35,0.5,0.6,0.7,0.8,0.9,1,1.5,2] # the Froude number
 
-scheme_to_run = 4 #CHANGE ME
-iterations = 4 #CHANGE ME
+scheme_to_run = 1 #CHANGE ME
+iterations = 3 #CHANGE ME
 
 plt_u_solns = False #CHANGE ME
 plt_h_solns = False #CHANGE ME
-print_c = False #CHANGE ME
+print_c = True #CHANGE ME
 plt_errors = False #CHANGE ME
 
 L = 1
@@ -341,7 +341,7 @@ def plot_grads_against_Fr(u_num, h_num, u_pred, h_pred, Frs):
     plt.plot(Frs, h_pred, color='steelblue', label='h predicted order of time')
     plt.xlabel("Fr")
     plt.ylabel("order")
-    plt.ylim((1.9,3.9))
+    plt.ylim((1.9,4.1))
     plt.title("Scheme = "+str(scheme_to_run)+", Iterations = "+str(iterations))
     plt.legend()
     plt.show()
