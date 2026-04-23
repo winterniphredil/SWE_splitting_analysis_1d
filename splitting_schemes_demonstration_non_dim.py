@@ -3,13 +3,18 @@ from numpy import sin, cos
 from numpy.linalg import inv
 import matplotlib.pyplot as plt
 
-Fr_ops = [1e-7,5e-5,1e-4,5e-3,1e-3,0.01,0.025,0.0325,0.05,0.075,0.1,0.15,0.2,0.25,0.35,0.5,0.75,1] # the Froude number
+Fr_ops = [1e-8,1e-6,5e-5,1e-4,5e-3,1e-3,0.01,0.025,0.0325,0.05,0.075,0.1,0.15,0.2,0.25,0.35,0.5,0.75,1] # the Froude number
 
-scheme_to_run = 4 #CHANGE ME
+scheme_to_run = 2 #CHANGE ME
 iterations = 2 #CHANGE ME
 
+plt_u_solns = False #CHANGE ME
+plt_h_solns = False #CHANGE ME
+print_c = False #CHANGE ME
+plt_errors = False #CHANGE ME
+
 L = 1
-N = 256
+N = 20
 x = np.linspace(0, L, N, endpoint=False)
 
 k = 2*np.pi / L
@@ -261,9 +266,9 @@ def pred_errors(sch, its, k, Fr, c, dt):
             h_pred += pred_eval[i][1]
     return u_pred, h_pred
 
-def plot_solutions_u(split, exact, rk4, orig, Fr, dt):
+def plot_solutions(split, exact, rk4, orig, Fr, dt):
     """
-    Plots the initial condition, analytic, and splitting scheme solution for u
+    Plots the initial condition, analytic, and splitting scheme solution for u or h
 
     Args:
         split (array): the splitting scheme solution
@@ -282,26 +287,6 @@ def plot_solutions_u(split, exact, rk4, orig, Fr, dt):
     plt.show()
     plt.cla()
 
-def plot_solutions_h(split, exact, rk4, orig, Fr, dt):
-    """
-    plots the initial condition, analytic, and splitting scheme solution for h
-
-    Args:
-        split (array): the splitting scheme solution
-        exact (array): the exact solution
-        rk4 (array): the RK4 solution
-        orig (array): the initial conditions
-        Fr (float): the Froude number
-        dt (float): the time step
-    """
-    plt.plot(x,split,color='red',label='splitting scheme solution')
-    plt.plot(x,exact,color='orange',label='analytic solution')
-    plt.plot(x,rk4,color='yellow',label='RK4 solution')
-    plt.plot(x,orig,color='green',label='initial conditions')
-    plt.title("Fr = "+str(Fr)+" and dt = "+str(dt))
-    plt.legend()
-    plt.show()
-    plt.cla()
 
 def plot_errors(u_diff, h_diff, u_pred, h_pred, Fr, dt):
     """
@@ -356,7 +341,7 @@ def plot_grads_against_Fr(u_num, h_num, u_pred, h_pred, Frs):
     plt.plot(Frs, h_pred, color='steelblue', label='h predicted order of time')
     plt.xlabel("Fr")
     plt.ylabel("order")
-    plt.ylim((1.9,3.1))
+    plt.ylim((1.9,3.9))
     plt.title("Scheme = "+str(scheme_to_run)+", Iterations = "+str(iterations))
     plt.legend()
     plt.show()
@@ -391,7 +376,6 @@ for i in range(len(Fr_ops)):
         h_n_split = h.copy()
         
         u_exact, h_exact = exact_update(u_0, h_0, k, Fr, c, steps, dt)
-        u_rk4, h_rk4 = RK4(u, h, k, Fr, c, dt)
         
         if j==0:
         
@@ -417,14 +401,26 @@ for i in range(len(Fr_ops)):
             this_diff_h.append(np.linalg.norm(h_diff_fixed))
             this_pred_u.append(np.linalg.norm(u_pred))
             this_pred_h.append(np.linalg.norm(h_pred))
+        
+        if plt_u_solns:
+            u_rk4, _ = RK4(u, h, k, Fr, c, dt)
+            plot_solutions(u_n_split, u_exact, u_rk4, u, Fr, dt) 
+        if plt_h_solns:
+            _, h_rk4 = RK4(u, h, k, Fr, c, dt)
+            plot_solutions(h_n_split, h_exact, h_rk4, h, Fr, dt) 
+        if plt_erros:plot_errors(u_diff_fixed, h_diff_fixed, u_pred, h_pred, Fr, dt)
+        
+        if print_c:courant_numbers(Fr, dt, dx)
+        
+        
                         
     
     grad, intercept = np.polyfit(np.log(dt_ops[1:]), np.log(this_diff_u), 1)
     print("\nFr = "+str(Fr)+"\nEstimated gradient for splitting error (u):", grad)
     grad_u_for_fr.append(grad)
 
-    grad_h, intercept = np.polyfit(np.log(dt_ops[1:]), np.log(this_diff_h), 1)
-    print("Estimated gradient for splitting error (h):", grad_h)
+    grad, intercept = np.polyfit(np.log(dt_ops[1:]), np.log(this_diff_h), 1)
+    print("Estimated gradient for splitting error (h):", grad)
     grad_h_for_fr.append(grad)
     
     grad, intercept = np.polyfit(np.log(dt_ops[1:]), np.log(this_pred_u), 1)
