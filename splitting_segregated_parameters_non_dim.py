@@ -123,7 +123,7 @@ def calc_splitting_error(operator_sequence, step_ops, step_count, order, n, I):
 
 
 
-for order_to_run in range(5):
+for order_to_run in range(6):
 
     print("\n\n\nORDER = "+str(order_to_run)+"\n\n")
     file_to_write.write("\n\n\nORDER = "+str(order_to_run)+"\n\n")
