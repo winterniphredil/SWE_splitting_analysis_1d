@@ -218,3 +218,28 @@ for order_to_run in range(6):
 
 
         calc_splitting_error(operator_sequence_1_3_expl, step_ops, no_steps*(I+1), order_to_run, 4, I)
+        
+        
+        
+        
+    ### Scheme 1.2 with explicit mass advection
+    
+    
+
+    for I in range(1,5):
+        no_steps = 4
+        step_ops = []
+        for i in range(no_steps*(I+1)): step_ops.append(1)
+
+        operator_sequence_1_2_expl = [lambda: [(u_0*E**(1j*k*x),0)], lambda: [(u_0*E**(1j*k*x),0)], lambda: [(h_0*E**(1j*k*x),0)], lambda: [(u_0*E**(1j*k*x),0)]]
+        for i in range(no_steps): step_ops[i] = operator_sequence_1_2[i]()[0][0]
+        step_ops[1]=step_ops[0]
+        step_ops[3]=step_ops[0]
+
+        for i in range(0,I):
+            operator_sequence_1_2_expl.append(lambda i=i: [(step_ops[0],0),(-1/2*dt*A_u*step_ops[0],0),(-1/2*dt*A_u,1),(-1/2*dt*G*step_ops[2],0),(-1/2*dt*G*step_ops[(i+1)*no_steps-2],0)])
+            operator_sequence_1_2_expl.append(lambda i=i: [(step_ops[0],0),(-1/2*dt*A_u*step_ops[0],0),(-1/2*dt*A_u*step_ops[(i+1)*no_steps],0),(-1/2*dt*G*step_ops[2],0)])
+            operator_sequence_1_2_expl.append(lambda i=i: [(step_ops[2],0),(-1/2*dt*A_h*step_ops[2],0),(-1/2*dt*A_h*step_ops[(i+1)*no_steps-2],0),(-1/2*dt*F*step_ops[0],0),(-1/2*dt*F*step_ops[(i+1)*no_steps+1],0),(1/4*dt*dt*F*G,1)])
+            operator_sequence_1_2_expl.append(lambda i=i: [(step_ops[(i+1)*no_steps+1],0),(-1/2*dt*G*step_ops[(i+1)*no_steps+2],0)])
+
+        calc_splitting_error(operator_sequence_1_2_expl, step_ops, no_steps*(I+1), order_to_run, 5, I)
