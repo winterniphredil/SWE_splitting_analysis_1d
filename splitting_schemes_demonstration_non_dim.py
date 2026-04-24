@@ -2,16 +2,23 @@ import numpy as np
 from numpy import sin, cos
 from numpy.linalg import inv
 import matplotlib.pyplot as plt
+import sys
+
 
 Fr_ops = [1e-8,1e-6,5e-5,1e-4,5e-3,1e-3,0.01,0.025,0.0325,0.05,0.075,0.1,0.15,0.2,0.25,0.35,0.5,0.6,0.7,0.8,0.9,1,1.5,2] # the Froude number
 
-scheme_to_run = 1 #CHANGE ME
-iterations = 3 #CHANGE ME
+scheme_to_run = int(sys.argv[1])
+iterations = int(sys.argv[2])
 
-plt_u_solns = False #CHANGE ME
-plt_h_solns = False #CHANGE ME
-print_c = True #CHANGE ME
-plt_errors = False #CHANGE ME
+plt_u_solns = False
+plt_h_solns = False
+print_c = False
+plt_errors = False
+
+if "-plot_u" in sys.argv[3:]:plt_u_solns = True
+if "-plot_h" in sys.argv[3:]:plt_h_solns = True
+if "-print_c" in sys.argv[3:]:print_c = True
+if "-plot_errors" in sys.argv[3:]:plt_errors = True
 
 L = 1
 N = 20
