@@ -351,11 +351,11 @@ def plot_grads_against_Fr(u_num, h_num, u_pred, h_pred, Frs):
     plt.ylim((1.9,4.1))
     plt.title("Scheme = "+str(scheme_to_run)+", Iterations = "+str(iterations))
     plt.legend()
-    plt.show()
+    plt.savefig("plots/"+str(scheme_to_run)+"_"+str(iterations)+".jpg")
     plt.cla()
 
 
-schemes = [scheme_1, scheme_2, scheme_3, scheme_4, scheme_2_expl]
+schemes = [scheme_1, scheme_2, scheme_2_expl, scheme_3, scheme_4]
 
 grad_u_for_fr = []
 grad_h_for_fr = []
