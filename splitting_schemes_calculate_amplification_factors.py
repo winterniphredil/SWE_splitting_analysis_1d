@@ -10,8 +10,6 @@ substitutions = {Fr: c_a/c_g, k: 1j*sin(theta)/dx, dt: c_g*dx/c}
 
 id_mat = smp.Matrix([[1,0],[0,1]])
 
-its = 2
-
 
 def semi_implicit(ampl_mat_prev_iter):
     prev_iter_contr = smp.Matrix([[0,0],[-c*dt/2*k,-c*Fr*dt/2*k]]) * ampl_mat_prev_iter
@@ -194,23 +192,3 @@ for its in range(1,4):
     #plot_2d(lambda_1,lambda_2,"op_split_2_"+str(its))
     
     
-#print(max_ev(lambda_1,lambda_2, 0.01, 0.1, 100))
-
-#plot_for_c_a(lambda_1, lambda_2, 0.5, 100)
-
-vals = {
-    theta: np.pi/2,
-    c_a: 1,
-    c_g: 1,
-    dx: 2*np.pi/100
-}
-
-A_num = np.array(A_mat.subs(vals), dtype=np.complex128)
-det = np.linalg.det(A_num)
-tr = np.trace(A_num)
-sqrt = np.sqrt(tr*tr - 4*det)
-lambda_1 = 1/2 * (tr + sqrt)
-lambda_2 = 1/2 * (tr - sqrt)
-#print(A_num)
-#print(np.linalg.eigvals(A_num))
-#print(lambda_1,lambda_2)
