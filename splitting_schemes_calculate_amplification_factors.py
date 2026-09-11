@@ -2,11 +2,12 @@ import sympy as smp
 from sympy import sin, symbols, Abs, Max
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import TwoSlopeNorm
 
 matrix_file = "ampl_matrices.txt"
 ev_file = "ampl_eigenv.txt"
 
-alpha = 1
+alpha = 0.5
 
 k, Fr, c, c_a, c_g = symbols('k Fr c c_a c_g', real = True)
 dt = symbols('dt', real = True)
@@ -14,40 +15,102 @@ a = symbols('alpha', real = True)
 substitutions = {Fr: c_a/c_g, k: 1j*c_g/(dt*c), a: alpha}
 
 id_mat = smp.Matrix([[1,0],[0,1]])
+J_mat = smp.Matrix([[0,1],[1,0]])
 
 
-def semi_implicit(ampl_mat_prev_iter):
-    prev_iter_contr = smp.Matrix([[0,0],[0,-a*c*Fr*dt*k]]) * ampl_mat_prev_iter
-    prev_time_contr = smp.Matrix([[0,0],[-(1-a)*c*dt*k,-(1-a)*c*Fr*dt*k]])
-    bracket_contr = smp.Matrix([[1,0],[-a*c*dt*k,1]]) * ( smp.Matrix([[1-(1-a)*c*Fr*dt*k,-(1-a)*c*dt*k],[0,1]]) + smp.Matrix([[-a*c*Fr*dt*k,0],[0,0]]) * ampl_mat_prev_iter )
-    ampl_mat = smp.Matrix([[1,-a*c*dt*k],[0,1]]) * smp.Matrix([[1,0],[0,1-a*a*c*c*dt*dt*k*k]]).inv() * (prev_iter_contr + prev_time_contr + bracket_contr)
+def semi_implicit_orig(ampl_mat_prev_iter):
+    """
+    Calculates the amplification matrix for a further iteration of the semi-implicit scheme
+
+    Args:
+        ampl_mat_prev_iter (2x2 matrix): the amplification matrix of the previous iteration
+
+    Returns:
+        (2x2 matrix): the final amplification matrix
+    """
+    coeff = id_mat + smp.I*a*c_g*J_mat
+    coeff_inv = 1/(1+a**2*c_g**2) * (id_mat-smp.I*a*c_g*J_mat)
+    term_1 = id_mat-smp.I*(1-a)*(c_a*id_mat + c_g*J_mat)
+    term_2 = -smp.I*a*c_a*ampl_mat_prev_iter
+    ampl_mat = coeff_inv*(term_1 + term_2)
+    return ampl_mat
+
+def semi_implicit_new(ampl_mat_prev_iter): #my adaptation considering trap2, e = 0 or 1 (c)
+    """
+    Calculates the amplification matrix for a further iteration of the semi-implicit scheme
+
+    Args:
+        ampl_mat_prev_iter (2x2 matrix): the amplification matrix of the previous iteration
+
+    Returns:
+        (2x2 matrix): the final amplification matrix
+    """
+    e=0
+    if ampl_mat_prev_iter==id_mat:
+        ampl_mat_prev_iter = smp.Matrix([[1-smp.I*c_a,-e*smp.I*c_g],[-e*smp.I*c_g,1-smp.I*c_a]])
+    
+    coeff = id_mat + smp.I*a*c_g*J_mat
+    coeff_inv = 1/(1+a**2*c_g**2) * (id_mat-smp.I*a*c_g*J_mat)
+    term_1 = id_mat-smp.I*(1-a)*(c_a*id_mat + c_g*J_mat)
+    term_2 = -smp.I*a*c_a*ampl_mat_prev_iter
+    ampl_mat = coeff_inv*(term_1 + term_2)
     return ampl_mat
     
+
 def segregated(ampl_mat_prev_iter):
-    bracket_1 = smp.Matrix([[1-(1-a)*c*Fr*dt*k,-(1-a)*c*dt*k],[0,1]]) + smp.Matrix([[0,-a*c*dt*k],[0,0]]) * ampl_mat_prev_iter
-    bracket_coeff_1 = smp.Matrix([[0,0],[a*a*c*c*Fr*dt*dt*k*k,0]]) * smp.Matrix([[1+a*c*Fr*dt*k,-0],[0,1]]).inv()
-    term_1 = smp.Matrix([[1,0],[a*(1-a)*c*c*Fr*dt*dt*k*k - c*dt*k , 1 - (1-a)*c*Fr*dt*k + a*(1-a)*c*c*dt*dt*k*k]])
-    bracket_coeff_2 = smp.Matrix([[1, -a*c*Fr*dt*k],[0,1]]) * smp.Matrix([[1,0],[0, 1 + a*c*Fr*dt*k - a*a*c*c*dt*dt*k*k]]).inv()
-    ampl_mat = bracket_coeff_2 * (term_1 + bracket_coeff_1 * bracket_1)
+    """
+    Calculates the amplification matrix for a further iteration of the segregated scheme
+
+    Args:
+        ampl_mat_prev_iter (2x2 matrix): the amplification matrix of the previous iteration
+
+    Returns:
+        (2x2 matrix): the final amplification matrix
+    """
+    e=0
+    if ampl_mat_prev_iter==id_mat:
+        ampl_mat_prev_iter = smp.Matrix([[1-smp.I*c_a,-e*smp.I*c_g],[-e*smp.I*c_g,1-smp.I*c_a]])
+    
+    beta = 1/(1+smp.I*c_a*a)
+    coeff = id_mat + smp.I*a*c_g*J_mat
+    term_1 = smp.Matrix([[beta,0],[0,1]]) * ((1-smp.I*c_a*(1-a))*id_mat-smp.I*c_g*(1-a)*J_mat)
+    term_2 = smp.Matrix([[0,smp.I*c_g*a*(1-beta)],[0,-smp.I*c_a*a]])*ampl_mat_prev_iter
+    ampl_mat = coeff.inv() * (term_1 + term_2)
     return ampl_mat
 
-def op_split_1(ampl_mat_prev_iter):
-    term_1 = smp.Matrix([[0,0],[-a*c*dt*k,0]]) * smp.Matrix([[1+a*c*Fr*dt*k,0],[0,1]]).inv() * smp.Matrix([[1-(1-a)*c*Fr*dt*k,0],[0,1]])
-    term_2 = smp.Matrix([[1,0],[-(1-a)*c*dt*k, 1 - (1-a)*c*Fr*dt*k + (1-a)*(1-a)*c*c*dt*dt*k*k]])
-    bracket_coeff = smp.Matrix([[1, -a*c*Fr*dt*k],[0,1]]) * smp.Matrix([[1,0],[0, 1 + a*c*Fr*dt*k - a*a*c*c*dt*dt*k*k]]).inv()
-    ampl_mat = bracket_coeff * (term_1 + term_2) + smp.Matrix([[0,-(1-a)*c*dt*k],[0,0]])
+def op_split(ampl_mat_prev_iter):
+    """
+    Calculates the amplification matrix for a further iteration of the operator-split scheme
+
+    Args:
+        ampl_mat_prev_iter (2x2 matrix): the amplification matrix of the previous iteration
+
+    Returns:
+        (2x2 matrix): the final amplification matrix
+    """
+    e=0
+    if ampl_mat_prev_iter==id_mat:
+        ampl_mat_prev_iter = smp.Matrix([[1-smp.I*c_a,-e*smp.I*c_g],[-e*smp.I*c_g,1-smp.I*c_a]])
+    
+    beta = 1/(1+smp.I*c_a*a)
+    coeff = id_mat + smp.I*a*c_g*J_mat
+    term_1 = smp.Matrix([[beta * (1-smp.I*c_a*(1-a)),0],[0,1-smp.I*c_a*(1-a)]]) - smp.I*c_g*(1-a)*J_mat
+    term_2 = smp.Matrix([[0,0],[0,-smp.I*c_a*a]]) * ampl_mat_prev_iter
+    ampl_mat = coeff.inv() * (term_1 + term_2)
     return ampl_mat
 
-def op_split_2(ampl_mat_prev_iter):
-    coeff_1 = smp.Matrix([[0,0],[-a*c*dt*k,0]]) * smp.Matrix([[1+a*c*Fr*dt*k,0],[0,1]]).inv() * smp.Matrix([[1-(1-a)*c*Fr*dt*k,0],[0,1]])
-    coeff_2 = smp.Matrix([[1,0],[-(1-a)*c*dt*k, 1 - (1-a)*c*Fr*dt*k + (1-a)*(1-a)*c*c*dt*dt*k*k]])
-    term_1 = coeff_1 + coeff_2
-    term_2 = smp.Matrix([[0,0],[0,-a*c*Fr*dt*k]]) * ampl_mat_prev_iter
-    bracket_coeff = smp.Matrix([[1, -a*c*Fr*dt*k],[0,1]]) * smp.Matrix([[1,0],[0, 1 - a*a*c*c*dt*dt*k*k]]).inv()
-    ampl_mat = bracket_coeff * (term_1 + term_2) + smp.Matrix([[0,-a*c*dt*k],[0,0]])
-    return ampl_mat
+def max_ev(A_mat, c_a_val, c_g_val):
+    A = np.array(
+        A_mat.subs({
+            c_a: c_a_val,
+            c_g: c_g_val
+        }).evalf(),
+        dtype=complex
+    )
 
-def max_ev(lambda_1, lambda_2, c_a_val, c_g_val):
+    return np.max(np.abs(np.linalg.eigvals(A)))
+
+def max_ev_orig(lambda_1, lambda_2, c_a_val, c_g_val):
     values = {c_a: c_a_val, c_g: c_g_val}
     l1 = complex(lambda_1.subs(values).evalf())
     l2 = complex(lambda_2.subs(values).evalf())
@@ -74,7 +137,7 @@ def plot_against_theta(lambda_1, lambda_2, c_a_val, c_g_val, nx, plot_name):
     plt.savefig("stability_plots/"+plot_name+"_c_a_"+str(c_a_val)+"_c_g_"+str(c_g_val)+"_alpha_"+str(alpha)+".png")
         
 
-def find_A_max(lambda_1, lambda_2, n_c_vals):
+def find_A_max(A_mat, lambda_1, lambda_2, n_c_vals):
     c_a_vals = np.linspace(0.0,3.0,n_c_vals)
     c_g_vals = np.linspace(0.0,3.0,n_c_vals)
 
@@ -82,7 +145,7 @@ def find_A_max(lambda_1, lambda_2, n_c_vals):
 
     for i, c_a_val in enumerate(c_a_vals):
         for j, c_g_val in enumerate(c_g_vals):
-            A[i,j] = max_ev(lambda_1,lambda_2, c_a_val, c_g_val)
+            A[i,j] = max_ev(A_mat, c_a_val, c_g_val)
             
     #print(A)
     return c_a_vals, c_g_vals, A
@@ -114,8 +177,8 @@ def plot_2d(lambda_1,lambda_2,plot_name):
     ax = plt.axes()
     ax.set_xlabel(r'$c_a$')
     ax.set_ylabel(r'$c_g$')
-    ax.contourf(CA, CG, A, levels=[0., 1.0000000001, A.max()],colors=['green', 'red'])
-    ax.contour(CA, CG, A, levels=[1.0], colors='black')
+    ax.contourf(CA, CG, A.transpose(), levels=[0., 1.0000000001, A.max()],colors=['green', 'red'])
+    ax.contour(CA, CG, A.transpose(), levels=[1.0], colors='black')
     #fig.colorbar(cf, label='amplification factor')
     plt.tight_layout()
     plt.savefig("stability_plots/"+plot_name+"_2d_alpha"+str(alpha)+".png")
@@ -161,6 +224,24 @@ def plot_continuous(lambda_1, lambda_2, plot_name):
     plt.savefig("stability_plots/"+plot_name+"_3d_cont.png")
     plt.cla()
 
+def plot_hilary(A_mat, lambda_1, lambda_2, plot_name):
+    cNorm = TwoSlopeNorm(1.,vmin=0., vmax=2.)
+    cLevels=np.arange(0, 2.1, 0.1)
+    c_a_vals, c_g_vals, A = find_A_max(A_mat, lambda_1, lambda_2, 25)
+    ca, cg = np.meshgrid(c_a_vals, c_g_vals, indexing='ij')
+    plt.figure(figsize=(6, 7))
+    cf = plt.contourf(ca, cg, A, 
+                  cLevels, cmap='bwr', extend='max', norm=cNorm)
+    plt.colorbar(cf, orientation='horizontal')
+    plt.contour(ca, cg, A, levels=[1.],
+                colors='black', linewidths=1)
+    plt.axvline(1.0, color='black', linestyle=':', linewidth=1)
+    plt.axhline(1.0, color='black', linestyle=':', linewidth=1)
+    plt.xlabel(r'$c_a$')
+    plt.ylabel(r'$c_g$')
+    plt.gca().set_aspect('equal', adjustable='box')
+    plt.tight_layout()
+    plt.savefig("stability_plots_1d/"+plot_name+"_new.png")
 
 def plot_for_c_a(lambda_1, lambda_2, c_a_val, plot_name):
     c_g_vals = np.linspace(0,2,20)
@@ -184,14 +265,15 @@ def plot_for_c_g(lambda_1, lambda_2, c_g_val, plot_name):
 
 
 def calc_evs(sch, its, A_mat):
-    A_mat = A_mat.subs(substitutions)
-    print(sch+" "+str(its)+"\n"+str(A_mat))
+    #A_mat = smp.cancel(A_mat.subs(substitutions))
+    #print(sch+" "+str(its)+"\n"+str(A_mat))
     with open(matrix_file,"a") as matfil:matfil.write(sch+" "+str(its)+"\n"+str(A_mat)+"\n\n")
     det = A_mat.det()
     tr = A_mat.trace()
-    sqrt = smp.sqrt(tr*tr - 4*det)
-    lambda_1 = 1/2 * (tr + sqrt)
-    lambda_2 = 1/2 * (tr - sqrt)
+    disc = smp.expand(tr*tr - 4*det)
+    lambda_1 = smp.simplify(1/2 * (tr + smp.sqrt(disc)))
+    lambda_2 = smp.simplify(1/2 * (tr - smp.sqrt(disc)))
+    #lambda_1, lambda_2 = A_mat.eigenvals().keys()
     print(lambda_1)
     print(lambda_2)
     with open(ev_file,"a") as evfil:evfil.write(sch+" "+str(its)+"\n"+str(lambda_1)+"\n"+str(lambda_2)+"\n\n")
@@ -200,48 +282,60 @@ def calc_evs(sch, its, A_mat):
 def run_segregated():
     A_mat = id_mat
     for its in range(1,4):
-        A_mat = segregated(A_mat)
-        
-        lambda_1, lambda_2 = calc_evs("segregated", its, A_mat)
+        A_mat = smp.cancel(segregated(A_mat).subs(substitutions))
+        A_plot = smp.cancel(A_mat.subs(substitutions))
+        print(smp.simplify(A_mat))
 
-        plot_continuous(lambda_1,lambda_2,"segregated_"+str(its))
+        lambda_1, lambda_2 = calc_evs("segregated", its, A_plot)
+
+        #plot_continuous(lambda_1,lambda_2,"semi_implicit_"+str(its))
+        #plot_2d(lambda_1,lambda_2,"semi_implicit_"+str(its))
+        plot_hilary(A_mat, lambda_1,lambda_2,"segregated_"+str(its))
 
 def run_semi_implicit():
     A_mat = id_mat
     for its in range(1,4):
-        A_mat = semi_implicit(A_mat)
+        A_mat = semi_implicit_new(A_mat).subs(substitutions)
+        A_plot = smp.cancel(A_mat.subs(substitutions))
+        print(smp.simplify(A_mat))
 
-        lambda_1, lambda_2 = calc_evs("semi-implicit", its, A_mat)
+        lambda_1, lambda_2 = calc_evs("semi-implicit", its, A_plot)
 
-        plot_continuous(lambda_1,lambda_2,"semi_implicit_"+str(its))
+        #plot_continuous(lambda_1,lambda_2,"semi_implicit_"+str(its))
+        #plot_2d(lambda_1,lambda_2,"semi_implicit_"+str(its))
+        plot_hilary(A_mat, lambda_1,lambda_2,"semi_implicit_"+str(its))
 
-def run_op_split_1():
+def run_op_split():
     A_mat = id_mat
     for its in range(1,4):
-        A_mat = op_split_1(A_mat)
+        A_mat = smp.cancel(op_split(A_mat).subs(substitutions)) 
 
-        lambda_1, lambda_2 = calc_evs("op-split 1", its, A_mat)
-        
-        #plot_for_c_g(lambda_1, lambda_2, 0, "op_split_1")
-        
-        plot_continuous(lambda_1,lambda_2,"op_split_1_"+str(its))
+        A_plot = smp.cancel(A_mat.subs(substitutions))
+        print(smp.simplify(A_mat))
+
+        lambda_1, lambda_2 = calc_evs("op-split", its, A_plot)
+
+        #plot_continuous(lambda_1,lambda_2,"semi_implicit_"+str(its))
+        #plot_2d(lambda_1,lambda_2,"semi_implicit_"+str(its))
+        plot_hilary(A_mat, lambda_1,lambda_2,"op_split_"+str(its))
 
 
 def run_op_split_2():
     A_mat = id_mat
     for its in range(1,4):
-        A_mat = op_split_2(A_mat)
+        A_mat = smp.cancel(op_split_2(A_mat).subs(substitutions)) 
 
         lambda_1, lambda_2 = calc_evs("op-split 2", its, A_mat)
         
         #print(max_ev(lambda_1,lambda_2, 0, 0, 100))
 
         plot_continuous(lambda_1,lambda_2,"op_split_2_"+str(its))
+        
 
 def generate_theta_plot():
     A_mat = op_split_1(id_mat)
     A_mat = A_mat.subs(substitutions)
-    print(A_mat)
+    #print(A_mat)
     det = A_mat.det()
     tr = A_mat.trace()
     sqrt = smp.sqrt(tr*tr - 4*det)
@@ -250,7 +344,7 @@ def generate_theta_plot():
     plot_against_theta(lambda_1, lambda_2, 0.2, 0.2, 100, "op_split_1")
 
 
-run_semi_implicit()
-run_segregated()
-run_op_split_1()
-run_op_split_2()
+#run_semi_implicit()
+#run_segregated()
+run_op_split()
+#run_op_split_2()

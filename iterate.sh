@@ -1,5 +1,4 @@
-for i in {1..5}; do
-  for j in {1..4}; do
-    python3 splitting_schemes_demonstration_non_dim.py $i $j
-  done
+for i in {1..3}; do
+    python3 splitting_schemes_accuracy_2d.py $i 2 0.5
 done
+
