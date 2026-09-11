@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.colors import ListedColormap, TwoSlopeNorm, BoundaryNorm
 from matplotlib.lines import Line2D
+import sys
 
 matplotlib.rcParams.update({'font.size': 18})
 
@@ -18,10 +19,10 @@ contour = False
 stability = False
 accuracy = False
 
-if "-scatter" in sys.argv[3:]:scatter = True
-if "-contour" in sys.argv[3:]:contour = True
-if "-stability" in sys.argv[3:]:stability = True
-if "-accuracy" in sys.argv[3:]:accuracy = True
+if "-scatter" in sys.argv[1:]:scatter = True
+if "-contour" in sys.argv[1:]:contour = True
+if "-stability" in sys.argv[1:]:stability = True
+if "-accuracy" in sys.argv[1:]:accuracy = True
 
 def generate_A_mat_f_g(A_exp, c_f_vals, c_g_vals):
     """
@@ -331,6 +332,10 @@ f_bt = [
 
 print("Coriolis inside:\n")
 ampl = interpret_tableau(a_bt,g_bt,f_bt)
+
+print("f axis", ampl.subs({a:0,g:0}))
+print("g axis", ampl.subs({a:0,f:0}))
+print("a axis", ampl.subs({f:0,g:0}))
 if stability:
     print(ampl)
     plot_a_f_0d(ampl.subs({g:0}))
@@ -400,6 +405,10 @@ f_bt = [
 
 print("Coriolis outside:\n")
 ampl = interpret_tableau(a_bt,g_bt,f_bt)
+
+print("f axis", ampl.subs({a:0,g:0}))
+print("g axis", ampl.subs({a:0,f:0}))
+print("a axis", ampl.subs({f:0,g:0}))
 if stability:
     print(ampl)
     plot_a_f_0d(ampl.subs({g:0}))
