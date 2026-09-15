@@ -1,10 +1,8 @@
-Run splitting_segregated_parameters_non_dim.py to generate file with analytical splitting error preditions.
+Run analysis_from_tableau.py with one tableau argument (-inside, -outside, -new-cn, or -new-ssp) and an analysis argument to perform the stability or accuracy analysis:
 
-Run splitting_schemes_demonstration_non_dim.py with two arguments, the first for the the scheme (1-5), and the second for number of iterations (1-4). Plots of the order against Fr are saved as scheme_iterations.jpg.
+Add -stability to calculate the amplification factor and generate the 2D stability plots.
+Add -scatter to generate a 3D stable/unstable scatter plot.
+Add -contour to generate a 3D plot of the |A| = 1 stability boundary.
+Add -accuracy to calculate and print the temporal accuracy of the scheme.
 
-Run iterate.sh to save plots for all schemes and available number of iterations.
-
-Add "-plot_u" to plot the solutions and initial conditions for u for Fr and dt.
-Add "-plot_h" to plot the solutions and initial conditions for h for Fr and dt.
-Add "-print_c" to print the advective and gravitational Courant numbers.
-Add "-plot_errors" to plot the predicted and measured errors for h for Fr and dt.
+Add a final argument for the location / start of the file name of the plots to be save.
