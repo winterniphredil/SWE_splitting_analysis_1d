@@ -70,7 +70,7 @@ def plot_f_g_0d(A_exp):
     
     cf, cg = np.meshgrid(c_f_vals, c_g_vals, indexing='ij')
     c_f = ax.contourf(cf, cg, A, cLevels, cmap='bwr', extend='max', norm=cNorm)
-    plt.colorbar(c_f, orientation='horizontal', fraction=0.046, pad=0.04)
+    plt.colorbar(c_f, orientation='horizontal', fraction=0.046, pad=0.1)
     plt.contour(cf, cg, A, levels=[1.000000001], colors='black', linewidths=1)
     plt.axvline(1.0, color='black', linestyle=':', linewidth=1)
     plt.axhline(1.0, color='black', linestyle=':', linewidth=1)
@@ -103,7 +103,7 @@ def plot_a_f_0d(A_exp):
     
     ca, cf = np.meshgrid(c_a_vals, c_f_vals, indexing='ij')
     c_f = ax.contourf(ca, cf, A, cLevels, cmap='bwr', extend='max', norm=cNorm)
-    plt.colorbar(c_f, orientation='horizontal', fraction=0.046, pad=0.04)
+    plt.colorbar(c_f, orientation='horizontal', fraction=0.046, pad=0.1)
     plt.contour(ca, cf, A, levels=[1.000000001], colors='black', linewidths=1)
     plt.axvline(1.0, color='black', linestyle=':', linewidth=1)
     plt.axhline(1.0, color='black', linestyle=':', linewidth=1)
@@ -135,7 +135,7 @@ def plot_a_g_0d(A_exp):
     
     ca, cg = np.meshgrid(c_a_vals, c_g_vals, indexing='ij')
     cf = ax.contourf(ca, cg, A, cLevels, cmap='bwr', extend='max', norm=cNorm)
-    plt.colorbar(cf, orientation='horizontal', fraction=0.046, pad=0.04)
+    plt.colorbar(cf, orientation='horizontal', fraction=0.046, pad=0.1)
     plt.contour(ca, cg, A, levels=[1.000000001], colors='black', linewidths=1)
     plt.axvline(1.0, color='black', linestyle=':', linewidth=1)
     plt.axhline(1.0, color='black', linestyle=':', linewidth=1)
@@ -168,6 +168,42 @@ def ampl_factor(a_tabl,g_tabl,f_tabl):
         y.append(this_y)
         
     return y[-1]
+
+
+
+def ampl_factor_nl(a_tabl,g_tabl,f_tabl):
+    """
+    Calculates the amplification factor of energy in terms of a, f, and g
+
+    Args:
+        a_tabl (2d array): the advection Butcher tableau
+        g_tabl (2d array): the gravity Butcher tableau
+        f_tabl (2d array): the Coriolis Butcher tableau
+    """
+    
+    # amplification factor for current stage
+    x = [1]
+    h = [1]
+    
+    for i in range(len(a_tabl)):
+        this_x = 1
+        this_h = 1
+        
+        # explicit part
+        for j in range(i+1):
+            this_x += (I*a*a_tabl[i][j]*x[j]*x[j] + I*g*g_tabl[i][j]*h[j] + I*f*f_tabl[i][j]*x[j])
+            this_h += (I*a*a_tabl[i][j]*h[j]*x[j] + I*g*g_tabl[i][j]*x[j]*h[j])
+            
+        # implicit part
+        this_x /= 1 - (I*a*a_tabl[i][i+1]*x[i-1] + I*g*g_tabl[i][i+1])
+        this_h /= 1 - (I*a*a_tabl[i][i+1]*x[i-1] + I*g*g_tabl[i][i+1]*h[i-1])
+        
+        x.append(this_x)
+        h.append(this_h)
+    
+    energy = 1/2 * x[-1]**2 * h[-1] + 1/2 * h[-1]**2
+    
+    return energy
 
 
 def print_accuracy(a_tabl,g_tabl,f_tabl):
@@ -212,6 +248,7 @@ def print_accuracy(a_tabl,g_tabl,f_tabl):
         for j in range(3):
             print(i," ",j," : ",smp.series(diff[i,j],dt,0,4),"\n") 
 
+
 def interpret_tableau(a_tabl,g_tabl,f_tabl):
     """
     Performs the requested accuracy and stability analysis.
@@ -223,7 +260,7 @@ def interpret_tableau(a_tabl,g_tabl,f_tabl):
     """
     if accuracy: print_accuracy(a_tabl,g_tabl,f_tabl)
     if stability:
-        ampl = ampl_factor(a_tabl,g_tabl,f_tabl)
+        ampl = ampl_factor_nl(a_tabl,g_tabl,f_tabl)
         return ampl
 
 def plot_3d(ampl):
