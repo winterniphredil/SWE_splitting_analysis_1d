@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.colors import TwoSlopeNorm
 import sys
+import itertools
 
 matplotlib.rcParams.update({'font.size': 18})
 
@@ -182,28 +183,30 @@ def ampl_factor_nl(a_tabl,g_tabl,f_tabl):
     """
     
     # amplification factor for current stage
-    x = [1]
-    h = [1]
+    x = [a]
+    h = [g**2+0.000001]
     
     for i in range(len(a_tabl)):
-        this_x = 1
-        this_h = 1
+        this_x = 2*a
+        this_h = g**2+0.000001
         
         # explicit part
         for j in range(i+1):
-            this_x += (I*a*a_tabl[i][j]*x[j]*x[j] + I*g*g_tabl[i][j]*h[j] + I*f*f_tabl[i][j]*x[j])
-            this_h += (I*a*a_tabl[i][j]*h[j]*x[j] + I*g*g_tabl[i][j]*x[j]*h[j])
+            this_x += (I*a_tabl[i][j]*x[j]*x[j] + I*g_tabl[i][j]*h[j] + I*f*f_tabl[i][j]*x[j])
+            this_h += (I*a_tabl[i][j]*h[j]*x[j] + I*g_tabl[i][j]*x[j]*h[j])
             
         # implicit part
-        this_x /= 1 - (I*a*a_tabl[i][i+1]*x[i-1] + I*g*g_tabl[i][i+1])
-        this_h /= 1 - (I*a*a_tabl[i][i+1]*x[i-1] + I*g*g_tabl[i][i+1]*h[i-1])
+        this_h /= 1 - (I*a_tabl[i][i+1]*x[i-1] - g_tabl[i][i+1]**2 *h[i-1])
+        this_x += I*g_tabl[i][i+1]*this_h # implicit gravity from above
+        this_x /= 1 - (I*a_tabl[i][i+1]*x[i-1])
         
         x.append(this_x)
         h.append(this_h)
     
-    energy = 1/2 * x[-1]**2 * h[-1] + 1/2 * h[-1]**2
+    E = 1/2 * x[-1]**2 * h[-1] + 1/2 * h[-1]**2
+    E0 = 1/2 * x[0]**2 * h[0] + 1/2 * h[0]**2
     
-    return energy
+    return E/E0
 
 
 def print_accuracy(a_tabl,g_tabl,f_tabl):
@@ -248,6 +251,24 @@ def print_accuracy(a_tabl,g_tabl,f_tabl):
         for j in range(3):
             print(i," ",j," : ",smp.series(diff[i,j],dt,0,4),"\n") 
 
+def second_order_conditions(w1,c1,w2,c2):
+    n = min(len(w1),len(c1))
+    cond1 = (sum(w1[i]*c1[i] for i in range(n)) == 0.5)
+    cond2 = (sum(w1[i]*c2[i] for i in range(n)) == 0.5)
+    cond3 = (sum(w2[i]*c1[i] for i in range(n)) == 0.5)
+    cond4 = (sum(w2[i]*c2[i] for i in range(n)) == 0.5)
+    return ((cond1 and cond2) and (cond3 and cond4))
+
+def check_order_pair(tabl_1, tabl_2):
+    c1 = [0]+[sum(i) for i in tabl_1[:-1]]
+    c2 = [0]+[sum(i) for i in tabl_2[:-1]]
+    w1 = tabl_1[-1][:len(c1)]
+    w2 = tabl_2[-1][:len(c1)]
+    print("Second order" if second_order_conditions(w1,c1,w2,c2) else "Not second order")
+    
+def check_order(a_tabl,g_tabl,f_tabl):
+    for t1,t2 in itertools.combinations((a_tabl,g_tabl,f_tabl),2):
+        check_order_pair(t1,t2)
 
 def interpret_tableau(a_tabl,g_tabl,f_tabl):
     """
@@ -258,9 +279,11 @@ def interpret_tableau(a_tabl,g_tabl,f_tabl):
         g_tabl (2d array): the gravity Butcher tableau
         f_tabl (2d array): the Coriolis Butcher tableau
     """
-    if accuracy: print_accuracy(a_tabl,g_tabl,f_tabl)
+    if accuracy: 
+        check_order(a_tabl,g_tabl,f_tabl)
+        #print_accuracy(a_tabl,g_tabl,f_tabl)
     if stability:
-        ampl = ampl_factor_nl(a_tabl,g_tabl,f_tabl)
+        ampl = ampl_factor(a_tabl,g_tabl,f_tabl)
         return ampl
 
 def plot_3d(ampl):
@@ -498,37 +521,37 @@ def new_SSP2_tbl():
     """
     SSP2_332-based tableaus with improved Coriolis treatment
     """
-    a_bt = [
-        [0,   0,   0,   0,   0,   0,   0,   0,   0,   0],
-        [0,   0,   0,   0,   0,   0,   0,   0,   0,   0],
-        [0,   0,   0,   0,   0,   0,   0,   0,   0,   0],
-        [0,   0,   0,   1/2, 0,   0,   0,   0,   0,   0],
-        [0,   0,   0,   1/2, 0,   0,   0,   0,   0,   0],
-        [0,   0,   0,   1/2, 0,   0,   0,   0,   0,   0],
-        [0,   0,   0,   1/2, 0,   0,   0,   1/2, 0,   0],
-        [0,   0,   0,   1/2, 0,   0,   0,   1/2, 0,   0],
+    g_bt = [
+        [0,   0,   0,   0,   0,   0,   0,   0,   0],
+        [0,   0,   0,   0,   0,   0,   0,   0,   0],
+        [0,   0,   0,   0,   0,   0,   0,   0,   0],
+        [0,   0,   0,   1/2, 0,   0,   0,   0,   0],
+        [0,   0,   0,   1/2, 0,   0,   0,   0,   0],
+        [0,   0,   0,   1/2, 0,   0,   0,   0,   0],
+        [0,   0,   0,   1/2, 0,   0,   0,   1/2, 0],
+        [0,   0,   0,   1/2, 0,   0,   0,   1/2, 0],
     ]
 
-    g_bt = [
-        [0,   0,   0,   0,   0,   0,   0,   0,   0,   0],
-        [0,   0,   0,   0,   0,   0,   0,   0,   0,   0],
-        [0,   0,   0,   0,   0,   0,   0,   0,   0,   0],
-        [0,   0,   0,   0,   0,   0,   0,   0,   0,   0],
-        [0,   0,   0,   0,   0,   1/4, 0,   0,   0,   0],
-        [0,   0,   0,   0,   0,   2/3, 1/3, 0,   0,   0],
-        [0,   0,   0,   0,   0,   2/3, 1/3, 0,   0,   0],
-        [0,   0,   0,   0,   0,   2/3, 1/3, 0,   0,   0],
+    a_bt = [
+        [0,   0,   0,   0,   0,   0,   0,   0,   0],
+        [0,   0,   0,   0,   0,   0,   0,   0,   0],
+        [0,   0,   0,   0,   0,   0,   0,   0,   0],
+        [0,   0,   0,   0,   0,   0,   0,   0,   0],
+        [0,   0,   0,   0,   0,   1/4, 0,   0,   0],
+        [0,   0,   0,   0,   0,   2/3, 1/3, 0,   0],
+        [0,   0,   0,   0,   0,   2/3, 1/3, 0,   0],
+        [0,   0,   0,   0,   0,   2/3, 1/3, 0,   0],
     ]
 
     f_bt = [
-        [1/2, 0,   0,   0,   0,   0,   0,   0,   0,   0],
-        [0,   1/2, 0,   0,   0,   0,   0,   0,   0,   0],
-        [0,   0,   1/2, 0,   0,   0,   0,   0,   0,   0],
-        [0,   0,   1/2, 0,   0,   0,   0,   0,   0,   0],
-        [0,   0,   1/2, 0,   0,   0,   0,   0,   0,   0],
-        [0,   0,   1/2, 0,   0,   0,   0,   0,   0,   0],
-        [0,   0,   1/2, 0,   0,   0,   0,   0,   0,   0],
-        [0,   0,   0,   1/2, 0,   0,   0,   1/2, 0,   0],
+        [1/2, 0,   0,   0,   0,   0,   0,   0,   0],
+        [0,   1/2, 0,   0,   0,   0,   0,   0,   0],
+        [0,   0,   1/2, 0,   0,   0,   0,   0,   0],
+        [0,   0,   1/2, 0,   0,   0,   0,   0,   0],
+        [0,   0,   1/2, 0,   0,   0,   0,   0,   0],
+        [0,   0,   1/2, 0,   0,   0,   0,   0,   0],
+        [0,   0,   1/2, 0,   0,   0,   0,   0,   0],
+        [0,   0,   0,   1/2, 0,   0,   0,   1/2, 0],
     ]
     return a_bt, g_bt, f_bt
 
@@ -561,6 +584,7 @@ ampl = interpret_tableau(a_bt,g_bt,f_bt)
 if stability:
     print("Amplification factor, f-axis (a=g=0): ", ampl.subs({a:0,g:0}))
     print("Amplification factor, g-axis (a=f=0): ", ampl.subs({a:0,f:0}))
+    print(smp.solve(smp.Abs(ampl.subs({a:0,f:0}))-1))
     print("Amplification factor, a-axis (f=g=0): ", ampl.subs({f:0,g:0}))
     print(ampl)
     plot_a_f_0d(ampl.subs({g:0}))
