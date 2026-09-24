@@ -260,6 +260,13 @@ def second_order_conditions(w1,c1,w2,c2):
     return ((cond1 and cond2) and (cond3 and cond4))
 
 def check_order_pair(tabl_1, tabl_2):
+    """
+    Checks if a pair of Butcher tableaus satisfies second order conditions from Pareschi and Russo (2012).
+    
+    Args:
+        tabl_1 (2d array): a Butcher tableau
+        tabl_2 (2d array): a Butcher tableau
+    """
     c1 = [0]+[sum(i) for i in tabl_1[:-1]]
     c2 = [0]+[sum(i) for i in tabl_2[:-1]]
     w1 = tabl_1[-1][:len(c1)]
@@ -267,6 +274,14 @@ def check_order_pair(tabl_1, tabl_2):
     print("Second order" if second_order_conditions(w1,c1,w2,c2) else "Not second order")
     
 def check_order(a_tabl,g_tabl,f_tabl):
+    """
+    Iterates through all pairs of three Butcher tableaus.
+
+    Args:
+        a_tabl (2d array): the advection Butcher tableau
+        g_tabl (2d array): the gravity Butcher tableau
+        f_tabl (2d array): the Coriolis Butcher tableau
+    """
     for t1,t2 in itertools.combinations((a_tabl,g_tabl,f_tabl),2):
         check_order_pair(t1,t2)
 
